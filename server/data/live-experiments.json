@@ -1,0 +1,42 @@
+[
+  {
+    "id": "LX1",
+    "title": "The health route answers",
+    "method": "GET",
+    "url": "/health",
+    "shows": "A route whose condition is an exact path match, answered by the gateway itself. The simulator predicts the seed health route: 200 with no token check.",
+    "bearsOn": []
+  },
+  {
+    "id": "LX2",
+    "title": "No route matches",
+    "method": "GET",
+    "url": "/no-such-route",
+    "shows": "What a request that no route claims gets back. The simulator predicts a bare 404 with an empty body; the real gateway decides the body.",
+    "bearsOn": []
+  },
+  {
+    "id": "LX3",
+    "title": "A protected route with no token",
+    "method": "GET",
+    "url": "/mcp/x",
+    "shows": "The 401 and its WWW-Authenticate challenge from a route behind a resource-server filter. The challenge from the real gateway is linted by the same rules as the simulated one.",
+    "bearsOn": []
+  },
+  {
+    "id": "LX4",
+    "title": "Dot-segments in the path",
+    "method": "GET",
+    "url": "/x/../health",
+    "shows": "Whether the gateway routes on the path as sent or after removing the dot-segments. The simulator keeps the raw path, so it predicts no route (404). A 200 would mean the real gateway normalised the path first.",
+    "bearsOn": [7]
+  },
+  {
+    "id": "LX5",
+    "title": "A percent-encoded letter in the path",
+    "method": "GET",
+    "url": "/%68ealth",
+    "shows": "Whether the gateway decodes the path before matching a route condition. The simulator keeps the raw path, so it predicts no route (404). A 200 would mean the real gateway decoded it.",
+    "bearsOn": [7]
+  }
+]

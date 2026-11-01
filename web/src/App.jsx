@@ -13,24 +13,27 @@ import RawTab from "./tabs/RawTab.jsx";
 
 export const BANNER = "simulated evaluator, not real PingGateway";
 export const TABS = [["routes", "Routes"], ["simulator", "Request simulator"], ["lint", "WWW-Authenticate linter"], ["introspection", "Introspection"], ["diagram", "Diagram"], ["raw", "Raw"]];
-// Used only if the server cannot say why Live is refused (GET /api/info normally carries the text).
-const LIVE_FALLBACK = "Live mode is not available in this lab yet: there is no live lane, so the page stays in Mock and everything on screen is simulated.";
+// Used only if the server cannot say why Live is off (GET /api/info normally carries the text).
+const LIVE_FALLBACK = "Live is off, or the server could not be asked. It is opt-in (ROUTE_LAB_LIVE=1 and ROUTE_LAB_LIVE_TARGET in the shared settings file), so the page stays in Mock and everything on screen is simulated.";
 const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, v); } catch { /* not remembered */ } };
 const tabFromHash = () => { const id = window.location.hash.replace(/^#\/?/, "").split("?")[0]; return TABS.some(([t]) => t === id) ? id : "routes"; };
 const typing = (e) => !!e.target && (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable);
 
-// The Mock | Live switch is in the header of every page, in every state (loading, error, ready). Live is refused for now: pressing it
-// leaves the page in Mock and says why. Nothing here ever turns Live on.
-function ModeToggle({ info, note, setNote }) {
-  const why = info?.modes?.live?.message || LIVE_FALLBACK;
+// The Mock | Live switch is in the header of every page, in every state (loading, error, ready). Live is opt-in on the server: when it is
+// off, pressing Live leaves the page in Mock and says why. When it is on, Live changes ONE thing: the Request simulator tab can send the
+// request to the configured loopback gateway. Predictions and every other tab stay simulated, and the banner says so.
+function ModeToggle({ info, mode, setMode, note, setNote }) {
+  const live = info?.modes?.live;
+  const pressLive = () => { if (live?.available) { setMode("live"); setNote(""); } else setNote(live?.message || LIVE_FALLBACK); };
+  const isLive = mode === "live";
   return (
     <div className="mode-toggle">
       <div className="mode-toggle__switch" role="group" aria-label="Mode">
-        <button type="button" aria-pressed="true" onClick={() => setNote("")} data-testid="mode-mock">Mock</button>
-        <button type="button" aria-pressed="false" aria-describedby="mode-note" onClick={() => setNote(why)} data-testid="mode-live">Live</button>
+        <button type="button" aria-pressed={!isLive} onClick={() => { setMode("mock"); setNote(""); }} data-testid="mode-mock">Mock</button>
+        <button type="button" aria-pressed={isLive} aria-describedby="mode-note" onClick={pressLive} data-testid="mode-live">Live</button>
       </div>
-      <span className="mode-toggle__chip" data-testid="mode">Mode: mock (simulated, in this process)</span>
+      <span className="mode-toggle__chip" data-testid="mode">{isLive ? `Mode: live (your gateway at ${live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
       <p className="mode-toggle__note" id="mode-note" role="status" data-testid="mode-note">{note}</p>
     </div>
   );
@@ -45,9 +48,10 @@ export default function App() {
   const [theme, setTheme] = useState(() => (["light", "dark"].includes(read("rl.theme", "")) ? read("rl.theme", "") : "system"));
   const [present, setPresent] = useState(() => read("rl.present", "0") === "1");
   const [modeNote, setModeNote] = useState("");
+  const [mode, setMode] = useState("mock");
 
   useEffect(() => { Promise.all([getCatalog(), getDiagram()]).then(([c, d]) => { setCatalog(c); setDiagram(d); }).catch((e) => setLoadError(e.message)); }, []);
-  useEffect(() => { getInfo().then(setInfo).catch(() => {}); }, []);
+  useEffect(() => { getInfo().then((i) => { setInfo(i); if (i.mode === "live" && i.modes?.live?.available) setMode("live"); }).catch(() => {}); }, []);
   useEffect(() => { const on = () => setTab(tabFromHash()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   useEffect(() => { if (theme === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => { if (present) document.documentElement.dataset.present = "1"; else delete document.documentElement.dataset.present; write("rl.present", present ? "1" : "0"); }, [present]);
@@ -66,7 +70,9 @@ export default function App() {
   const shell = (body, header) => (
     <>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
-      <div className="banner" role="note" data-state="mock" data-testid="banner"><strong>Mock mode. Simulated evaluator, not real PingGateway.</strong> A small hand-written interpreter, a mock authorization server and a linter, all in this process. No gateway, no tenant, no outbound network.</div>
+      {mode === "live" && info?.modes?.live?.target
+        ? <div className="banner" role="note" data-state="live" data-testid="banner"><strong>Live mode. Predictions and every other tab are a simulated evaluator, not real PingGateway.</strong> Only the Send to the real gateway button on the Request simulator tab reaches a gateway: yours, at {info.modes.live.target} on this machine, one request at a time. Tokens you type are sent but never shown back.</div>
+        : <div className="banner" role="note" data-state="mock" data-testid="banner"><strong>Mock mode. Simulated evaluator, not real PingGateway.</strong> A small hand-written interpreter, a mock authorization server and a linter, all in this process. No gateway, no tenant, no outbound network.</div>}
       {header}
       {body}
     </>
@@ -74,15 +80,15 @@ export default function App() {
   const bareHeader = (
     <header className="top">
       <h1><span className="mark" aria-hidden="true">IG</span> Ping Gateway Route LAB</h1>
-      <div className="tools-right"><ModeToggle info={info} note={modeNote} setNote={setModeNote} /></div>
+      <div className="tools-right"><ModeToggle info={info} mode={mode} setMode={setMode} note={modeNote} setNote={setModeNote} /></div>
     </header>
   );
   if (loadError) return shell(<main className="page" id="main" tabIndex={-1}><p className="alert" role="alert">Could not reach the lab server: {loadError}</p></main>, bareHeader);
   if (!catalog || !diagram) return shell(<main className="page" id="main" tabIndex={-1}><p className="muted" role="status">Loading the lab...</p></main>, bareHeader);
-  return shell(<Shell catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} setTheme={setTheme} present={present} setPresent={setPresent} modeToggle={<ModeToggle info={info} note={modeNote} setNote={setModeNote} />} />);
+  return shell(<Shell mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} setTheme={setTheme} present={present} setPresent={setPresent} modeToggle={<ModeToggle info={info} mode={mode} setMode={setMode} note={modeNote} setNote={setModeNote} />} />);
 }
 
-function Shell({ catalog, setCatalog, diagram, tab, theme, setTheme, present, setPresent, modeToggle }) {
+function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme, present, setPresent, modeToggle }) {
   const [routes, setRoutes] = useState({ routes: [], rejected: [] });
   const [session, setSession] = useState(null);
   const [cursor, setCursor] = useState(-1);
@@ -137,7 +143,7 @@ function Shell({ catalog, setCatalog, diagram, tab, theme, setTheme, present, se
     go(id); tabRefs.current[id]?.focus();
   };
 
-  const app = { catalog, diagram, cast, routes, refreshRoutes, session, showSession, scenarioId, setScenarioId, doRun, running, runError, resetAll, cursor, setCursor, boxes, setBoxes, theme, present, go, tokens, setTokens, lintSeed, setLintSeed, req, setReq };
+  const app = { mode, liveTarget: info?.modes?.live?.target || null, catalog, diagram, cast, routes, refreshRoutes, session, showSession, scenarioId, setScenarioId, doRun, running, runError, resetAll, cursor, setCursor, boxes, setBoxes, theme, present, go, tokens, setTokens, lintSeed, setLintSeed, req, setReq };
   const Panel = { routes: RoutesTab, simulator: SimulatorTab, lint: LintTab, introspection: IntrospectionTab, diagram: DiagramTab, raw: RawTab }[tab];
 
   return (

@@ -16,6 +16,9 @@ import { runScenario, runAll, seedDefinitions } from './runner.js';
 import { SCENARIOS, VERTICALS, getScenario, getVertical, storyCorpus, renderScenario } from './stories.js';
 import { newTraceparent, childTraceparent } from './trace.js';
 import { modeInfo } from './config.js';
+import { createLive } from './live.js';
+import { LIVE_LIMITS, METHOD_ALLOW, REQUEST_HEADER_ALLOW, RESPONSE_HEADER_ALLOW } from './liveClient.js';
+import { LIVE_EXPERIMENTS } from './liveExperiments.js';
 import { DIAGRAM_NAMES, hasDiagram, rawDiagram } from './diagramData.js';
 
 const WEB_DIST = process.env.WEB_DIST || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
@@ -29,7 +32,7 @@ export function createWorld({ start = Date.now() } = {}) {
   return { clock, as: createMockAS({ clock }), defs, routeSet: buildRouteSet(defs) };
 }
 
-export function createApp({ health = createHealth(), world: initialWorld = createWorld(), webDist = WEB_DIST } = {}) {
+export function createApp({ live = createLive(), health = createHealth({ runtime: () => (live.status().enabled ? 'live' : 'offline') }), world: initialWorld = createWorld(), webDist = WEB_DIST } = {}) {
   let world = initialWorld; // POST /api/reset swaps in a fresh one
   const app = express();
   app.disable('x-powered-by');
@@ -61,8 +64,19 @@ export function createApp({ health = createHealth(), world: initialWorld = creat
   });
   api.get('/rules', (_req, res) => res.json({ rules: RULES }));
 
-  // The mode in effect (always mock: Live is refused for now, with its reason) and the diagram, as diagram-studio/1 data loaded by name.
-  api.get('/info', (_req, res) => res.json({ simulated: true, label: SIMULATED_LABEL, ...modeInfo(process.env), diagrams: DIAGRAM_NAMES }));
+  // The mode the page opens in (Mock unless Live was asked for AND is allowed; otherwise the reason), the Live limits and the diagram names.
+  api.get('/info', (_req, res) => res.json({ simulated: true, label: SIMULATED_LABEL, ...modeInfo(live.env, live.status()), live: { limits: { ...LIVE_LIMITS }, methods: METHOD_ALLOW, requestHeaders: REQUEST_HEADER_ALLOW, responseHeaders: RESPONSE_HEADER_ALLOW }, diagrams: DIAGRAM_NAMES }));
+  api.get('/live/experiments', (_req, res) => res.json({ experiments: LIVE_EXPERIMENTS }));
+  // Live: send the composed request to the one configured loopback gateway and compare. Refused unless Live is on; needs confirm:true.
+  api.post('/live/send', async (req, res) => {
+    const { request, confirm } = req.body || {};
+    if (!live.status().enabled) return res.status(403).json({ error: 'live_disabled', message: live.status().reason });
+    if (confirm !== true) return bad(res, 'confirm must be true: this sends the request to the real gateway');
+    let r;
+    try { r = await live.send({ request, world }); } catch { r = { status: 500, body: { error: 'server_error' } }; } // nothing the request carried is logged or echoed
+    if (r.headers) res.set(r.headers);
+    res.set('Cache-Control', 'no-store').status(r.status).json(r.body);
+  });
   api.get('/diagram', (req, res) => {
     const name = req.query.name === undefined ? DIAGRAM_NAMES[0] : req.query.name;
     if (!hasDiagram(name)) return bad(res, 'no such diagram', 404); // the name the caller sent is never echoed

@@ -4,7 +4,7 @@
 
 Open with the label: this is a simulated evaluator, not real PingGateway. Say what that buys you (the mechanics, instantly, with nothing installed) and what it does not (IG's own parse errors, route reload, handler chain).
 
-The page is in Mock mode. Live is refused for now: there is no live lane, so nothing here reaches a real gateway. Press Live once to show the page saying so.
+The page opens in Mock. Press Live once: if Live is off (the default) the page says why and stays in Mock, which is itself a safe thing to show. If Live is on, the banner and the mode chip change and the Request simulator tab gains a Send to the real gateway button.
 
 Presenter mode (P, or the Present button) hides the explanatory text and keeps the banner. Esc leaves it. Reset lab puts the routes, tokens, clock and diagram boxes back.
 
@@ -29,5 +29,24 @@ One line per story. Each is generated from the story data, filled with the cast 
 | S15 | A hostile condition is refused, not run | Deep nesting and huge conditions stop at fixed limits with a clear error. Nothing recurses past them and nothing is evaluated. |
 | S16 | A catastrophic regex is refused before it runs | The classic (a+)+$ can pin a CPU for minutes. The lab analyses the pattern first and refuses it. |
 | S17 | The introspection endpoint is down | With the mock AS unreachable the route cannot decide. The lab answers 503 and says plainly that how real IG answers here is UNVERIFIED. |
+## Live mode (opt-in, your own gateway)
+
+Live sends the request you composed to one local gateway and sets its real answer beside the simulator's prediction: status, a short list of safe response headers, a bounded body preview and whether the two agree. Only the Request simulator tab does this; every prediction and every other tab is still simulated.
+
+Say what Live is not: it does not make the simulator real. The seed routes are a scrubbed copy of one deployment, so a disagreement is as likely to mean the route table differs from your gateway as that the simulator is wrong. Edit the routes to mirror your gateway, then compare again.
+
+Nothing is sent without the confirm box. No cookie and no body ever go, a token you type goes to the gateway and is never shown back, and the target is fixed in the settings file and must be on this machine.
+
+These experiments are unauthenticated GET requests and change nothing on the gateway. Use the Fill the request button on the Request simulator tab, then send.
+
+| Id | Request | What it shows | Bears on (docs/safety.md item) |
+| --- | --- | --- | --- |
+| LX1 | `GET /health` | A route whose condition is an exact path match, answered by the gateway itself. The simulator predicts the seed health route: 200 with no token check. | none |
+| LX2 | `GET /no-such-route` | What a request that no route claims gets back. The simulator predicts a bare 404 with an empty body; the real gateway decides the body. | none |
+| LX3 | `GET /mcp/x` | The 401 and its WWW-Authenticate challenge from a route behind a resource-server filter. The challenge from the real gateway is linted by the same rules as the simulated one. | none |
+| LX4 | `GET /x/../health` | Whether the gateway routes on the path as sent or after removing the dot-segments. The simulator keeps the raw path, so it predicts no route (404). A 200 would mean the real gateway normalised the path first. | 7 |
+| LX5 | `GET /%68ealth` | Whether the gateway decodes the path before matching a route condition. The simulator keeps the raw path, so it predicts no route (404). A 200 would mean the real gateway decoded it. | 7 |
+
+Experiments that change the gateway (a new route, a stopped introspection endpoint) are owner-run instructions in docs/live-checks.md, not buttons.
 
 Never say whether PingGateway runs without a licence. It is UNVERIFIED.

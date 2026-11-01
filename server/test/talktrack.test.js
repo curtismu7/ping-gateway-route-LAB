@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { renderTalkTrackMarkdown, talkTrackFrame, talkTrackRows } from '../src/talkTrack.js';
 import { SCENARIOS, VERTICALS, unfilledTokens } from '../src/stories.js';
+import { LIVE_EXPERIMENTS } from '../src/liveExperiments.js';
 
 const committed = fs.readFileSync(new URL('../../docs/talk-track.md', import.meta.url), 'utf8');
 
@@ -33,10 +34,20 @@ test('changing a story changes the generated track (it really is generated from 
   assert.equal(renderTalkTrackMarkdown(), before);
 });
 
-test('the track opens with the simulated label, says Live is refused, keeps the licence line as UNVERIFIED, and says Presenter mode keeps the banner', () => {
+test('the track opens with the simulated label, says what Live does when it is off and when it is on, keeps the licence line as UNVERIFIED, and says Presenter mode keeps the banner', () => {
   const f = talkTrackFrame();
   assert.match(f.opening.join('\n'), /simulated evaluator, not real PingGateway/);
-  assert.match(f.opening.join('\n'), /Live is refused for now/);
+  assert.match(f.opening.join('\n'), /if Live is off \(the default\) the page says why and stays in Mock/);
+  assert.match(f.opening.join('\n'), /If Live is on/);
   assert.match(f.opening.join('\n'), /keeps the banner/);
   assert.match(f.closing.join('\n'), /UNVERIFIED/);
+});
+
+test('the Live section is generated from the experiment data: one row per experiment, and changing one changes the track', () => {
+  for (const e of LIVE_EXPERIMENTS) assert.ok(committed.includes(`| ${e.id} | \`${e.method} ${e.url}\` |`), e.id);
+  assert.match(committed, /^## Live mode \(opt-in, your own gateway\)$/m);
+  assert.match(committed, /Say what Live is not/);
+  const changed = LIVE_EXPERIMENTS.map((e, i) => (i === 0 ? { ...e, shows: 'CHANGED SHOWS' } : e));
+  assert.match(renderTalkTrackMarkdown(undefined, changed), /CHANGED SHOWS/);
+  assert.doesNotMatch(renderTalkTrackMarkdown(), /CHANGED SHOWS/);
 });

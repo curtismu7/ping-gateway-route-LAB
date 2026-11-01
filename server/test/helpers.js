@@ -2,6 +2,7 @@ import http from 'node:http';
 import { createApp, startHttpServer, createWorld } from '../src/app.js';
 import { createHealth } from '../src/health.js';
 import { Bag } from '../src/el.js';
+import { createLive } from '../src/live.js';
 import { normalizeRequest } from '../src/routes.js';
 
 // A request context for evaluator tests.
@@ -12,10 +13,11 @@ export function ctx(url = '/mcp/x', headers = { Host: 'mcp.gw-lab.example' }, ex
 }
 export const emptyCtx = () => ({ request: new Bag([]), env: new Bag([]) });
 
-export async function withServer(fn, { webDist } = {}) {
-  const health = createHealth({ intervalMs: 3_600_000 });
+// Tests are hermetic: unless a test passes its own live object, Live is off whatever the developer's environment says.
+export async function withServer(fn, { webDist, live = createLive({ env: {} }) } = {}) {
+  const health = createHealth({ intervalMs: 3_600_000, runtime: () => (live.status().enabled ? 'live' : 'offline') });
   await health.ready;
-  const { server, url } = await startHttpServer({ port: 0, host: '127.0.0.1', app: createApp({ health, world: createWorld(), ...(webDist ? { webDist } : {}) }) });
+  const { server, url } = await startHttpServer({ port: 0, host: '127.0.0.1', app: createApp({ health, world: createWorld(), ...(webDist ? { webDist } : {}), live }) });
   try { await fn(url.replace(/\/$/, '')); } finally { health.stop(); await new Promise((r) => server.close(r)); }
 }
 

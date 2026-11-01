@@ -73,7 +73,7 @@ describe("shell", () => {
 });
 
 describe("mode toggle and presenter mode", () => {
-  it("Mock | Live is in the header of every tab, shows Mock, and Live is refused with a reason (nothing changes)", async () => {
+  it("Mock | Live is in the header of every tab, shows Mock, and while Live is off pressing it says why (nothing changes)", async () => {
     const user = await open();
     for (const [, label] of TABS) {
       await tab(user, label);
@@ -85,7 +85,7 @@ describe("mode toggle and presenter mode", () => {
     }
     srv.calls.length = 0;
     await user.click(screen.getByTestId("mode-live"));
-    expect(screen.getByTestId("mode-note")).toHaveTextContent(/Live mode is not available/);
+    expect(screen.getByTestId("mode-note")).toHaveTextContent(/Live is off/);
     expect(screen.getByTestId("mode-note")).toHaveTextContent(/stays in Mock/);
     expect(screen.getByTestId("mode-live")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("mode-mock")).toHaveAttribute("aria-pressed", "true");
@@ -102,7 +102,8 @@ describe("mode toggle and presenter mode", () => {
     await screen.findByRole("alert");
     expect(screen.getByTestId("mode-mock")).toBeInTheDocument();
     await userEvent.setup().click(screen.getByTestId("mode-live"));
-    expect(screen.getByTestId("mode-note")).toHaveTextContent(/Live mode is not available/);
+    expect(screen.getByTestId("mode-note")).toHaveTextContent(/Live is off/);
+    expect(screen.getByTestId("mode-note")).toHaveTextContent(/stays in Mock/);
     globalThis.fetch = keep;
   });
 

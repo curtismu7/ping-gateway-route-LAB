@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0 (Live mode)
+An opt-in Live mode: the Request simulator can send the request you composed to ONE gateway on this machine and show what actually answered (status, an allow-list of response headers, a bounded body preview) beside what the simulator predicted, and whether the two agree. Mock stays the default and makes zero network calls.
+
+- Opt-in keys in the shared settings file: `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` (one loopback origin, no override). Off by default; refused with a reason otherwise (`GET /api/info`, the toggle note, the doctor).
+- `POST /api/live/send` (confirm gate, rate limit, one at a time) and `GET /api/live/experiments`. New server files `live.js`, `liveTarget.js`, `liveClient.js` (the only outbound HTTP client), `liveSanitize.js`, `liveExperiments.js`; netguard gains `withPermit` (one address and port, released afterwards).
+- Guards: resolve and re-check on every send (rebinding refused), peer check before any byte is written, TLS exception scoped to the one request, method/path/header allow-lists, no cookie, no body, no redirect followed, 5 s / 16 KB / 1024 characters, 10 sends per 30 s, secrets masked before the cut and a typed token never shown back.
+- Page: the toggle now switches (when Live is on), the banner and mode chip say Live, the Request simulator gets the send button, a side-by-side result, a verdict, per-check pills, the real challenge linted with the same rules, and five one-click experiments.
+- Five Live experiments (`server/data/live-experiments.json`), generated into the talk track with a drift test. One real run against a local PingGateway 2026.6.0 is recorded in `docs/live-checks.md`: 4 of 5 predictions agreed; `request.uri.path` is decoded by the real gateway (a percent-encoded letter), which the simulator does not do (known gap, `docs/safety.md` item 7).
+- Doctor: `live` and `live-guards` checks (the doctor never contacts the target). Health reports `runtime: live` only while Live is allowed.
+- Tests: a local fake HTTPS gateway with a self-signed certificate built at run time (no key or certificate committed); mutation checks for the Live guards.
+- Verified on OrbStack: the image builds and is healthy on `127.0.0.1` only; in the compose container `POST /api/live/send` is a 403 (Live off: no settings file, no Live key). With Live forced on inside a container whose target is `https://localhost:PORT`, the send is a 502 `connection_refused`: `localhost` there is the container, not the host, so Live is a host-run feature.
+- Last run on Node 26: 178 server tests, 50 web tests, 33 repo and script tests, 87 of 87 mutants killed (the mutation runner now checks that the unmutated copy passes first, and copies `docs/` and `web/src` so the whole suite really runs on each mutant: before, every mutant looked killed because one test could not find its files).
+- Known gaps, not changed: the simulator does not decode the path; the Docker form cannot reach a host gateway (Live is host-run).
+
 ## 0.4.0 (move to the -LAB standard)
 New repo `ping-gateway-route-LAB`, a single clean commit made from the old repo's `origin/main` (6de01df), which already holds everything on `docs/claude-md-tier` plus the relative shelf `composeFile` and the dropped npm cache. No new features.
 
