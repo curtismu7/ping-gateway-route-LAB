@@ -2,7 +2,7 @@
   "schema": "demo-content-pack/1",
   "id": "ping-gateway-route-lab",
   "title": "Ping Gateway Route LAB (simulated)",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "demo": {
     "id": "ping-gateway-route-lab",
     "name": "Ping Gateway Route LAB (simulated)",
@@ -17,7 +17,8 @@
       "rfc9728",
       "rfc7662",
       "simulated",
-      "mock"
+      "mock",
+      "live"
     ]
   },
   "glossary": [
@@ -68,6 +69,20 @@
       "id": "introspection",
       "term": "Token introspection",
       "definition": "The resource server asks the authorization server whether a token is active and what it carries (scope, aud, exp, client_id). An inactive token gets just {\"active\": false}."
+    },
+    {
+      "id": "live-mode",
+      "term": "Live mode",
+      "definition": "Opt-in. The Request simulator can send the request you composed to ONE gateway on this machine and set its real answer (status, a short list of safe headers, a bounded body preview) beside the simulator's prediction. The prediction, and every other tab, is still simulated. The seed routes are a scrubbed copy of one deployment, so a disagreement can mean the route table differs from your gateway.",
+      "aliases": [
+        "real gateway",
+        "live check"
+      ]
+    },
+    {
+      "id": "live-experiment",
+      "term": "Live experiment",
+      "definition": "An unauthenticated GET that needs no change to the gateway, with the simulator's prediction beside the real answer. Five ship with the lab (health, no route, a protected route, dot-segments, a percent-encoded letter). Experiments that change a gateway stay owner-run instructions."
     },
     {
       "id": "virtual-clock",
@@ -313,7 +328,8 @@
       "terms": [
         "simulated-evaluator",
         "route-condition",
-        "route-order"
+        "route-order",
+        "live-mode"
       ]
     },
     {
@@ -330,6 +346,20 @@
         "empty-first-param",
         "resource-metadata",
         "insufficient-scope"
+      ]
+    },
+    {
+      "id": "try-live",
+      "label": "Live: the real answer beside the prediction",
+      "description": "With Live on, send one of the five experiments to your own local gateway and compare status, challenge and body with what the simulator predicted. Off by default; the page says why when it is off.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#/simulator"
+      },
+      "terms": [
+        "live-mode",
+        "live-experiment"
       ]
     },
     {

@@ -43,6 +43,10 @@ code { font-size: 0.85rem; overflow-wrap: anywhere; }
 .linkbtn { text-align: left; overflow-wrap: anywhere; }
 .compact { min-height: 2rem; padding: 0.2rem 0.6rem; font-size: 0.85rem; }
 
+.live-box { margin: 0.75rem 0; padding: 0.75rem; border: 1px solid var(--border); border-left: 4px solid var(--status-warn); border-radius: 8px; background: var(--surface-2); }
+.live-result { overflow-wrap: anywhere; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+.live-box { overflow-wrap: anywhere; }
+.live-exp .finding { margin: 0.4rem 0; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.9rem; margin: 0.4rem 0; font-size: 0.92rem; }
 .kv dt { font-weight: 700; color: var(--muted); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }

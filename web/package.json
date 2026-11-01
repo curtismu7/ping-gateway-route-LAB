@@ -1,6 +1,6 @@
 {
   "name": "@ping-gateway-route-lab/web",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "React + Vite UI for the route lab. Talks only to its own origin. A SIMULATED evaluator, not real PingGateway.",

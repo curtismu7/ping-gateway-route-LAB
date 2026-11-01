@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Mutation pinning: break each key behaviour in a throwaway copy of server/ and require the server tests to FAIL.
 // A mutation that the tests survive means a rule is not pinned. Exits 1 if any mutant survives or a mutation did not apply.
-//   node scripts/mutation-check.mjs [--only <label-substring>]
+//   node scripts/mutation-check.mjs [--only <label-substring>[|<another>...]]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,6 +9,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+const LIVE_TESTS = ['netguardPermit.test.js', 'liveTarget.test.js', 'liveClient.test.js', 'live.test.js'];
 
 export const MUTATIONS = [
   // the condition evaluator and the trap
@@ -67,23 +69,62 @@ export const MUTATIONS = [
   ['safety: Host check removed', 'safety.js', "if (!isLoopbackHost(host)) return res.status(403).json({ error: 'bad_host'", "if (false) return res.status(403).json({ error: 'bad_host'"],
   ['safety: port range widened', 'safety.js', 'port < PORT_MIN || port > PORT_MAX', 'false'],
   ['netguard: udp connect not guarded', 'netguard.js', "if (!ok) { attempts.push(`udp-connect:", "if (false) { attempts.push(`udp-connect:"],
-  ['config: asking for live turns it on', 'config.js', "return { mode: 'mock', requested,", "return { mode: requested, requested,"],
+  ['config: asking for live turns it on', 'config.js', "mode: requested === 'live' && live.enabled ? 'live' : 'mock'", 'mode: requested'],
   ['diagrams: any name is served', 'diagramData.js', "typeof name === 'string' && Object.hasOwn(DOCS, name)", 'true'],
   ['settings: another app\'s key is taken', 'settings.js', 'SETTINGS_KEYS.filter((k) =>', 'Object.keys(parsed).filter((k) =>'],
   ['netguard: fetch not guarded', 'netguard.js', "if (!isLoopbackHost(url.hostname)) { attempts.push(`fetch:", "if (false) { attempts.push(`fetch:"],
+  // Live mode (each runs only the Live test files: a mutant in the Live code is judged by the tests written for it)
+  ['live: any flag value turns Live on', 'live.js', "if (flag !== '1') return { enabled: false, code: 'bad_flag'", "if (false) return { enabled: false, code: 'bad_flag'", LIVE_TESTS],
+  ['live: the off state is not reported as off', 'live.js', "if (flag === undefined || flag === '') return { enabled: false, code: 'off'", "if (false) return { enabled: false, code: 'off'", LIVE_TESTS],
+  ['live: the bind rule removed', 'live.js', "if (!isLoopbackHost(bindHost(env)) && env.LAB_DOCKER_LOOPBACK_PUBLISH !== '1')", 'if (false)', LIVE_TESTS],
+  ['live: any truthy container marker accepted', 'live.js', "env.LAB_DOCKER_LOOPBACK_PUBLISH !== '1'", '!env.LAB_DOCKER_LOOPBACK_PUBLISH', LIVE_TESTS],
+  ['live: send does not check that Live is on', 'live.js', 'if (!st.enabled) return { status: 403', 'if (false) return { status: 403', LIVE_TESTS],
+  ['live: the request is not validated', 'live.js', "if (!v.ok) return { status: 400, body: { error: 'bad_request', message: v.message } };", '', LIVE_TESTS],
+  ['live: rate limit removed', 'live.js', 'if (stamps.length >= LIVE_LIMITS.rateMax) {', 'if (false) {', LIVE_TESTS],
+  ['live: one-at-a-time lock removed', 'live.js', 'if (busy) return', 'if (false) return', LIVE_TESTS],
+  ['live: the comparison ignores the status', 'live.js', "add('status', 'HTTP status', predicted.status, actual.status);", "add('status', 'HTTP status', 1, 1);", LIVE_TESTS],
+  ['app: the Live endpoint needs no confirm', 'app.js', 'if (confirm !== true) return bad(', 'if (false) return bad(', LIVE_TESTS],
+  ['target: userinfo allowed', 'liveTarget.js', 'if (u.username || u.password)', 'if (false)', LIVE_TESTS],
+  ['target: a path, query or fragment allowed', 'liveTarget.js', "if (u.pathname !== '/' || u.search || u.hash || /[?#]/.test(raw))", 'if (false)', LIVE_TESTS],
+  ['target: any host name allowed', 'liveTarget.js', ": hostname !== 'localhost') return", ': false) return', LIVE_TESTS],
+  ['target: the lab\'s own ports allowed', 'liveTarget.js', ' || (port >= 5050 && port <= 5099)', '', LIVE_TESTS],
+  ['target: 0.0.0.0 counts as loopback', 'liveTarget.js', 'if (v4) return v4[0] === 127;', 'if (v4) return v4[0] === 127 || v4[0] === 0;', LIVE_TESTS],
+  ['target: IPv4-mapped non-loopback accepted', 'liveTarget.js', '(g[6] >> 8) === 127; // ::ffff', 'true; // ::ffff', LIVE_TESTS],
+  ['target: resolved addresses not checked', 'liveTarget.js', "list.some((a) => typeof a !== 'string' || !isLoopbackAddress(a))", 'false', LIVE_TESTS],
+  ['client: a cookie header may be sent', 'liveClient.js', "'traceparent', 'mcp-protocol-version']", "'traceparent', 'mcp-protocol-version', 'cookie']", LIVE_TESTS],
+  ['client: any method may be sent', 'liveClient.js', ' || !METHOD_ALLOW.includes(method.toUpperCase())', '', LIVE_TESTS],
+  ['client: an absolute URL may be sent', 'liveClient.js', "!url.startsWith('/') || url.startsWith('//')", 'false', LIVE_TESTS],
+  ['client: Set-Cookie may be shown', 'liveClient.js', "'x-content-type-options', 'traceparent']", "'x-content-type-options', 'traceparent', 'set-cookie']", LIVE_TESTS],
+  ['client: the TLS exception is global', 'liveClient.js', 'options.rejectUnauthorized = false;', "options.rejectUnauthorized = false; process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';", LIVE_TESTS],
+  ['client: the response read is unbounded', 'liveClient.js', 'if (bytes + c.length > LIVE_LIMITS.maxReadBytes) {', 'if (false) {', LIVE_TESTS],
+  ['client: the connected peer is not checked', 'liveClient.js', "if (!peerIsLoopback(sock.remoteAddress || '')) {", 'if (false) {', LIVE_TESTS],
+  ['client: no netguard permit around the request', 'liveClient.js', 'await withPermit({ connectHosts: [address], port: target.port, lookupNames: [] }, () =>', 'await ((fn) => fn())(() =>', LIVE_TESTS],
+  ['client: a real token is echoed back', 'liveClient.js', "`Bearer [hidden: ${request.bearer.length} characters]`", '`${v}`', LIVE_TESTS],
+  ['sanitize: JWTs are not masked', 'liveSanitize.js', "'[jwt hidden]'", "'$&'", LIVE_TESTS],
+  ['sanitize: the exact secrets are not removed', 'liveSanitize.js', 'for (const sec of secrets) {', 'for (const sec of []) {', LIVE_TESTS],
+  ['sanitize: invisible characters are not stripped', 'liveSanitize.js', ".normalize('NFKC').replace(INVISIBLE, '')", '', LIVE_TESTS],
+  ['sanitize: the text is cut before it is masked', 'liveSanitize.js', "const s = mask(text, secrets);\n  return { text: s.slice(0, max), truncated: s.length > max };", "const s = String(text);\n  return { text: mask(s.slice(0, max), secrets), truncated: s.length > max };", LIVE_TESTS],
+  ['netguard: a permit allows any port', 'netguard.js', ' || port !== permit.port) {', ') {', LIVE_TESTS],
+  ['netguard: the permit stays open after the call', 'netguard.js', 'finally { permit.open = false; permitsActive -= 1; }', 'finally { permitsActive -= 1; }', LIVE_TESTS],
+  ['netguard: fetch allowed inside a permit', 'netguard.js', 'if (permitScope.getStore()) { attempts.push(`permit:fetch:', 'if (false) { attempts.push(`permit:fetch:', LIVE_TESTS],
 ];
 
-function run(label, file, from, to) {
+function run(label, file, from, to, only) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lab-mut-'));
   try {
     fs.cpSync(path.join(ROOT, 'server'), path.join(dir, 'server'), { recursive: true, filter: (s) => !s.includes('node_modules') });
+    fs.cpSync(path.join(ROOT, 'docs'), path.join(dir, 'docs'), { recursive: true }); // tests read docs/talk-track.md
+    fs.cpSync(path.join(ROOT, 'web/src'), path.join(dir, 'web/src'), { recursive: true }); // and scan the web code for hand-built diagram nodes
     fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'));
     const target = path.join(dir, 'server/src', file);
     const src = fs.readFileSync(target, 'utf8');
-    const n = src.split(from).length - 1;
-    if (n !== 1) return { label, status: 'NOT-APPLIED', detail: `pattern occurs ${n} times in ${file}` };
-    fs.writeFileSync(target, src.replace(from, () => to));
-    const r = spawnSync(process.execPath, ['--test', ...fs.readdirSync(path.join(dir, 'server/test')).filter((f) => f.endsWith('.test.js')).map((f) => `test/${f}`)], { cwd: path.join(dir, 'server'), encoding: 'utf8', timeout: 180000 });
+    if (from !== null) {
+      const n = src.split(from).length - 1;
+      if (n !== 1) return { label, status: 'NOT-APPLIED', detail: `pattern occurs ${n} times in ${file}` };
+      fs.writeFileSync(target, src.replace(from, () => to));
+    } // from === null: the unmutated baseline
+    const files = only || fs.readdirSync(path.join(dir, 'server/test')).filter((f) => f.endsWith('.test.js'));
+    const r = spawnSync(process.execPath, ['--test', ...files.map((f) => `test/${f}`)], { cwd: path.join(dir, 'server'), encoding: 'utf8', timeout: 180000 });
     return { label, status: r.status === 0 ? 'SURVIVED' : 'killed', detail: '' };
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
@@ -91,7 +132,11 @@ function run(label, file, from, to) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const i = process.argv.indexOf('--only');
   const only = i > 0 ? process.argv[i + 1] : '';
-  const results = MUTATIONS.filter(([l]) => l.includes(only)).map(([l, f, a, b]) => run(l, f, a, b));
+  // The unmutated copy must pass first, otherwise every mutant would look killed.
+  const base = run('baseline (no mutation)', 'app.js', null, null);
+  console.log(`${base.status === 'SURVIVED' ? 'PASS       ' : 'FAIL       '} baseline (the unmutated copy passes its tests)`);
+  if (base.status !== 'SURVIVED') process.exit(1);
+  const results = MUTATIONS.filter(([l]) => only.split('|').some((o) => l.includes(o))).map(([l, f, a, b, t]) => run(l, f, a, b, t));
   for (const r of results) console.log(`${r.status.padEnd(11)} ${r.label}${r.detail ? ` (${r.detail})` : ''}`);
   const bad = results.filter((r) => r.status !== 'killed');
   console.log(`\n${results.length - bad.length}/${results.length} mutants killed`);
