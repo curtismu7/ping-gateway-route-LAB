@@ -5,7 +5,7 @@
       "name": "Ping Gateway Route LAB (simulated)",
       "catalogId": "A19",
       "kind": "Tester",
-      "description": "Simulated evaluator, not real PingGateway: which route a request matches and why, the empty-first-param WWW-Authenticate bug, RFC 9728 metadata lint and an RFC 7662 introspection stub. Mock by default; an opt-in Live mode sends one request to your own loopback gateway and shows its real answer beside the prediction.",
+      "description": "Simulated evaluator, not real PingGateway: which route a request matches and why, the empty-first-param WWW-Authenticate bug, RFC 9728 metadata lint and an RFC 7662 introspection stub. Mock by default; opt-in Live (host-run) compares one request with your own loopback gateway.",
       "url": "http://localhost:5050",
       "healthPath": "/api/health",
       "composeFile": "ping-gateway-route-LAB/docker-compose.yml",

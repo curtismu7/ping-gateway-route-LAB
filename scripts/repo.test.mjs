@@ -35,6 +35,7 @@ test('content pack validation rejects a broken pack', () => {
 
 test('shelf entry matches the demo: id, catalog id, Tester kind, port, health path, loopback url, portable composeFile', () => {
   const [d] = JSON.parse(read('docs/shelf-entry.json')).demos;
+  assert.ok(d.name.length <= 300 && d.description.length > 0 && d.description.length <= 300, 'the shelf refuses to start on a description over 300 characters');
   assert.equal(d.id, 'ping-gateway-route-lab');
   assert.equal(d.catalogId, 'A19', 'carried over from the old repo; a placeholder until the owner confirms the catalog row');
   assert.equal(d.kind, 'Tester');
