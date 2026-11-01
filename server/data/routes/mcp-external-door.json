@@ -1,0 +1,59 @@
+{
+  "name": "mcp-external-door",
+  "comment": "Selected by HOST, not by path: the path is the same ^/mcp as the main route. The name sorts before mcp-main-*, so this route is tried first for that host and every other host falls through.",
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^mcp[.]gw-lab[.]example')}",
+  "heap": [
+    {
+      "comment": "Lab stand-in for a token introspection resolver (RFC 7662).",
+      "name": "ExternalDoorResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${empty env['LAB_INTROSPECTION_ENDPOINT'] ? 'https://as.gw-lab.example/introspect' : env['LAB_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": {
+          "type": "ClientHandler"
+        }
+      }
+    },
+    {
+      "name": "ExternalDoorResourceServerFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": true,
+        "scopes": [
+          "${empty env['LAB_INBOUND_SCOPE'] ? 'mcp:invoke' : env['LAB_INBOUND_SCOPE']}"
+        ],
+        "accessTokenResolver": "ExternalDoorResolver"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "Challenge401",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "door-401-metadata.groovy"
+          }
+        },
+        {
+          "name": "Audit",
+          "type": "AuditFilter"
+        },
+        "ExternalDoorResourceServerFilter",
+        {
+          "name": "ProtocolCheck",
+          "type": "ProtocolValidationFilter"
+        }
+      ]
+    }
+  },
+  "lab": {
+    "audience": "https://mcp.gw-lab.example/mcp",
+    "metadataUrl": "https://mcp.gw-lab.example/.well-known/oauth-protected-resource",
+    "challengeStyle": "space",
+    "realm": "Gateway Lab"
+  }
+}

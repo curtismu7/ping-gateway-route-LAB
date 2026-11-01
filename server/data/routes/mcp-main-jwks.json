@@ -1,0 +1,28 @@
+{
+  "name": "mcp-main-jwks",
+  "comment": "Main door, signature-checked variant. The negative lookahead keeps invest and weather traffic out.",
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "Audit",
+          "type": "AuditFilter"
+        },
+        {
+          "name": "JwksCheck",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "jwks-check.groovy"
+          }
+        },
+        {
+          "name": "ProtocolCheck",
+          "type": "ProtocolValidationFilter"
+        }
+      ]
+    }
+  }
+}

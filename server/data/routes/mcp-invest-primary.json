@@ -1,0 +1,59 @@
+{
+  "name": "mcp-invest-primary",
+  "comment": "Invest tools, token introspected.",
+  "condition": "${find(request.uri.path, '^/mcp/invest')}",
+  "heap": [
+    {
+      "comment": "Lab stand-in for a token introspection resolver (RFC 7662).",
+      "name": "InvestResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${empty env['LAB_INTROSPECTION_ENDPOINT'] ? 'https://as.gw-lab.example/introspect' : env['LAB_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": {
+          "type": "ClientHandler"
+        }
+      }
+    },
+    {
+      "name": "InvestResourceServerFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": true,
+        "scopes": [
+          "invest:read"
+        ],
+        "accessTokenResolver": "InvestResolver"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "Audit",
+          "type": "AuditFilter"
+        },
+        {
+          "name": "PathRewrite",
+          "type": "UriPathRewriteFilter"
+        },
+        "InvestResourceServerFilter",
+        {
+          "name": "ProtocolCheck",
+          "type": "ProtocolValidationFilter"
+        },
+        {
+          "name": "Exchange",
+          "type": "OAuth2TokenExchangeFilter"
+        }
+      ]
+    }
+  },
+  "lab": {
+    "audience": "https://mcp.gw-lab.example/mcp/invest",
+    "metadataUrl": "https://mcp.gw-lab.example/.well-known/oauth-protected-resource",
+    "challengeStyle": "space",
+    "realm": "Gateway Lab"
+  }
+}

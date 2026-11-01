@@ -1,0 +1,124 @@
+{
+  "schema": "diagram-studio/1",
+  "id": "request-path",
+  "title": "How a request travels",
+  "lede": "Client, route matcher, route handler, introspection and backend. A simulated evaluator, not real PingGateway: drag any box, then press Simulate.",
+  "groups": {
+    "dark": {
+      "label": "Edge of the lab",
+      "color": "dark"
+    },
+    "blue": {
+      "label": "Gateway steps (simulated)",
+      "color": "blue"
+    },
+    "grey": {
+      "label": "Mock authorization server",
+      "color": "grey"
+    }
+  },
+  "nodes": [
+    {
+      "id": "client",
+      "label": "Client",
+      "group": "dark",
+      "x": 0,
+      "y": 0,
+      "sub": [
+        "Sends the request, with or without a Bearer token."
+      ]
+    },
+    {
+      "id": "matcher",
+      "label": "Route matcher",
+      "group": "blue",
+      "x": 400,
+      "y": 0,
+      "sub": [
+        "Tests every route's condition. First by name wins."
+      ]
+    },
+    {
+      "id": "handler",
+      "label": "Route handler",
+      "group": "blue",
+      "x": 800,
+      "y": 0,
+      "sub": [
+        "The resource-server filter reads the token, audience, scope."
+      ]
+    },
+    {
+      "id": "introspect",
+      "label": "Introspection",
+      "group": "grey",
+      "x": 800,
+      "y": 200,
+      "sub": [
+        "Mock authorization server, RFC 7662."
+      ]
+    },
+    {
+      "id": "backend",
+      "label": "Backend",
+      "group": "dark",
+      "x": 400,
+      "y": 200,
+      "sub": [
+        "Reached only when the token is accepted."
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "client",
+      "target": "matcher",
+      "label": "1 request"
+    },
+    {
+      "source": "matcher",
+      "target": "handler",
+      "label": "2 route chosen"
+    },
+    {
+      "source": "handler",
+      "target": "introspect",
+      "label": "3 introspect token"
+    },
+    {
+      "source": "introspect",
+      "target": "backend",
+      "label": "4 active: forward"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Request",
+      "what": "{{client}} sends a request to {{host}}.",
+      "edges": [
+        0
+      ]
+    },
+    {
+      "title": "Route chosen",
+      "what": "The matcher tests each route's condition and picks the first that is true.",
+      "edges": [
+        1
+      ]
+    },
+    {
+      "title": "Introspect",
+      "what": "The handler finds a Bearer token and asks the mock authorization server about it.",
+      "edges": [
+        2
+      ]
+    },
+    {
+      "title": "Forward",
+      "what": "The token is active, for this audience, with the right scope.",
+      "edges": [
+        3
+      ]
+    }
+  ]
+}

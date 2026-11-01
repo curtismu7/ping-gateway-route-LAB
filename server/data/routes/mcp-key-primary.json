@@ -1,0 +1,51 @@
+{
+  "name": "mcp-key-primary",
+  "comment": "API-key door, introspected.",
+  "condition": "${find(request.uri.path, '^/mcp/apikey')}",
+  "heap": [
+    {
+      "comment": "Lab stand-in for a token introspection resolver (RFC 7662).",
+      "name": "KeyResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${empty env['LAB_INTROSPECTION_ENDPOINT'] ? 'https://as.gw-lab.example/introspect' : env['LAB_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": {
+          "type": "ClientHandler"
+        }
+      }
+    },
+    {
+      "name": "KeyResourceServerFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": true,
+        "scopes": [
+          "mcp:invoke"
+        ],
+        "accessTokenResolver": "KeyResolver"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "Audit",
+          "type": "AuditFilter"
+        },
+        "KeyResourceServerFilter",
+        {
+          "name": "ProtocolCheck",
+          "type": "ProtocolValidationFilter"
+        }
+      ]
+    }
+  },
+  "lab": {
+    "audience": "https://mcp.gw-lab.example/mcp/apikey",
+    "metadataUrl": "https://mcp.gw-lab.example/.well-known/oauth-protected-resource",
+    "challengeStyle": "space",
+    "realm": "Gateway Lab"
+  }
+}

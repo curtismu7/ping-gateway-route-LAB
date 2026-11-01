@@ -1,0 +1,16 @@
+{
+  "demos": [
+    {
+      "id": "ping-gateway-route-lab",
+      "name": "Ping Gateway Route LAB (simulated)",
+      "catalogId": "A19",
+      "kind": "Tester",
+      "description": "Simulated evaluator, not real PingGateway: which route a request matches and why, the empty-first-param WWW-Authenticate bug, RFC 9728 metadata lint and an RFC 7662 introspection stub. Mock mode only; Live is refused for now.",
+      "url": "http://localhost:5050",
+      "healthPath": "/api/health",
+      "composeFile": "ping-gateway-route-LAB/docker-compose.yml",
+      "composeOverlays": [],
+      "notes": "Host-run: ./scripts/run.sh (port 5050). Mock only: no tenant, no gateway, no credentials. Docker: HOST_PORT=5050 docker compose up --build -d (published on 127.0.0.1 only). composeFile is relative to the demo root (the folder above this checkout) and names the repo folder ping-gateway-route-LAB. catalogId A19 is carried over from the old repo and is a placeholder until the owner confirms the catalog row."
+    }
+  ]
+}

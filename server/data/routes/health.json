@@ -1,0 +1,12 @@
+{
+  "name": "health",
+  "comment": "Liveness endpoint answered by the gateway itself.",
+  "condition": "${find(request.uri.path, '^/health$')}",
+  "handler": {
+    "type": "ScriptableHandler",
+    "config": {
+      "type": "application/x-groovy",
+      "file": "health.groovy"
+    }
+  }
+}

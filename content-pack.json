@@ -1,0 +1,433 @@
+{
+  "schema": "demo-content-pack/1",
+  "id": "ping-gateway-route-lab",
+  "title": "Ping Gateway Route LAB (simulated)",
+  "version": "0.4.0",
+  "demo": {
+    "id": "ping-gateway-route-lab",
+    "name": "Ping Gateway Route LAB (simulated)",
+    "catalog": "A19",
+    "baseUrl": "http://localhost:5050",
+    "doctor": "/api/health",
+    "tags": [
+      "pinggateway",
+      "ig",
+      "route-condition",
+      "www-authenticate",
+      "rfc9728",
+      "rfc7662",
+      "simulated",
+      "mock"
+    ]
+  },
+  "glossary": [
+    {
+      "id": "simulated-evaluator",
+      "term": "Simulated evaluator",
+      "definition": "This lab reads route conditions with its own small interpreter. It is not PingGateway, shares no code with it, and cannot show what only a real gateway shows: its real parse errors, route reload and handler chain."
+    },
+    {
+      "id": "route-condition",
+      "term": "Route condition",
+      "definition": "The expression on a route that decides whether a request belongs to it, written as ${ ... }. The lab covers the part real routes use: find(), matches(), contains(), ==, !=, and, or, not, empty and request.uri, request.method, request.headers and request.queryParams."
+    },
+    {
+      "id": "route-order",
+      "term": "Route order",
+      "definition": "When two routes match, one must win. The lab assumes routes are tried in name order. Whether real IG does that is UNVERIFIED.",
+      "aliases": [
+        "shadowed route"
+      ]
+    },
+    {
+      "id": "invalid-escape-trap",
+      "term": "The \\. trap",
+      "definition": "Inside a quoted condition string only \\' and \\\\ are legal escapes. A regex written the natural way, with \\., cannot be parsed, so the route is not loaded and its requests get a bare 404. Use [.] for a literal dot. Observed once in a real deployment; here it is simulated."
+    },
+    {
+      "id": "www-authenticate",
+      "term": "WWW-Authenticate challenge",
+      "definition": "The header a 401 carries to tell a client how to authenticate: a scheme such as Bearer followed by name=\"value\" params separated by commas."
+    },
+    {
+      "id": "empty-first-param",
+      "term": "Empty first auth-param",
+      "definition": "A comma straight after the scheme, as in Bearer , resource_metadata=\"...\". One real client rejected it. The lab flags it as WA001."
+    },
+    {
+      "id": "resource-metadata",
+      "term": "resource_metadata",
+      "definition": "A param in the 401 challenge that points a client at the protected-resource metadata document (RFC 9728), which names the authorization server to use."
+    },
+    {
+      "id": "insufficient-scope",
+      "term": "insufficient_scope",
+      "definition": "The token is valid but too narrow. The answer is 403 with the scope the client should ask for, not 401."
+    },
+    {
+      "id": "introspection",
+      "term": "Token introspection",
+      "definition": "The resource server asks the authorization server whether a token is active and what it carries (scope, aud, exp, client_id). An inactive token gets just {\"active\": false}."
+    },
+    {
+      "id": "virtual-clock",
+      "term": "Virtual clock",
+      "definition": "The lab moves its own clock to expire tokens, so nothing sleeps and a run is repeatable."
+    }
+  ],
+  "sources": [
+    {
+      "id": "rfc6750",
+      "title": "RFC 6750: The OAuth 2.0 Bearer Token Usage",
+      "url": "https://www.rfc-editor.org/rfc/rfc6750",
+      "kind": "standard",
+      "use": "Bearer challenge params, error codes, 401 vs 403 contract",
+      "status": "not-read",
+      "checked": "2026-10-21"
+    },
+    {
+      "id": "rfc7235",
+      "title": "RFC 7235: HTTP Authentication",
+      "url": "https://www.rfc-editor.org/rfc/rfc7235",
+      "kind": "standard",
+      "use": "challenge and auth-param syntax",
+      "status": "not-read",
+      "checked": "2026-10-21"
+    },
+    {
+      "id": "rfc7662",
+      "title": "RFC 7662: OAuth 2.0 Token Introspection",
+      "url": "https://www.rfc-editor.org/rfc/rfc7662",
+      "kind": "standard",
+      "use": "the introspection response the mock AS returns",
+      "status": "not-read",
+      "checked": "2026-10-21"
+    },
+    {
+      "id": "rfc9728",
+      "title": "RFC 9728: OAuth 2.0 Protected Resource Metadata",
+      "url": "https://www.rfc-editor.org/rfc/rfc9728",
+      "kind": "standard",
+      "use": "resource_metadata and the metadata document lint",
+      "status": "not-read",
+      "checked": "2026-10-21"
+    }
+  ],
+  "cards": [
+    {
+      "id": "try-host",
+      "label": "Same path, chosen by host",
+      "description": "Two routes match the same path. The host condition makes the door route win for its own host, and every other host falls through to the main route.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S01"
+      },
+      "story": "S01"
+    },
+    {
+      "id": "try-miss",
+      "label": "No route matches",
+      "description": "When no condition is true the gateway answers 404 with no body and no hint. The lab shows each condition and why it was false.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S02"
+      },
+      "story": "S02"
+    },
+    {
+      "id": "try-order",
+      "label": "A broad route shadows a specific one",
+      "description": "Both routes match /mcp/{{svc}}. The lab assumes routes are tried in name order, so the broad one answers and the specific one never does. Renaming fixes it.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S03"
+      },
+      "story": "S03"
+    },
+    {
+      "id": "try-dot-trap",
+      "label": "The \\. trap",
+      "description": "Inside a quoted condition string only \\' and \\\\ are legal escapes. Writing the natural regex \\. makes the condition unparseable, the route is not loaded, and requests get a bare 404 while everything else looks fine.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S04"
+      },
+      "story": "S04"
+    },
+    {
+      "id": "try-dot-fix",
+      "label": "The [.] fix",
+      "description": "A character class matches a literal dot with no escape at all, so the condition parses and the route loads.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S05"
+      },
+      "story": "S05"
+    },
+    {
+      "id": "try-lookahead",
+      "label": "Negative lookahead",
+      "description": "The main route excludes /mcp/invest and /mcp/weather with (?!...). Those paths fall to their own routes; everything else under /mcp goes to main.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S06"
+      },
+      "story": "S06"
+    },
+    {
+      "id": "try-comma",
+      "label": "Bearer , resource_metadata",
+      "description": "A script appended \", resource_metadata=...\" to a param-less Bearer. The first auth-param is empty. One real client rejected it (reported earlier, not re-measured here).",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S07"
+      },
+      "story": "S07"
+    },
+    {
+      "id": "try-space",
+      "label": "The fixed challenge",
+      "description": "With a space after the scheme and a comma only between params, the same 401 lints clean.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S08"
+      },
+      "story": "S08"
+    },
+    {
+      "id": "try-bad-shapes",
+      "label": "Three ways to break resource_metadata",
+      "description": "An http URL, an unquoted URL and a missing hint each fail in a different way.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S09"
+      },
+      "story": "S09"
+    },
+    {
+      "id": "try-inactive",
+      "label": "Revoked and unknown tokens",
+      "description": "The mock AS answers {\"active\": false} and nothing else for a revoked or unknown token. The route turns that into 401 invalid_token.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S10"
+      },
+      "story": "S10"
+    },
+    {
+      "id": "try-expired",
+      "label": "Expiry on the virtual clock",
+      "description": "Nothing sleeps: the lab moves its own clock. At exp the AS says inactive.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S11"
+      },
+      "story": "S11"
+    },
+    {
+      "id": "try-aud",
+      "label": "Wrong audience",
+      "description": "The token is active and has the scope, but its aud names a different resource. The route refuses it with 401 invalid_token.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S12"
+      },
+      "story": "S12"
+    },
+    {
+      "id": "try-403",
+      "label": "Insufficient scope is a 403",
+      "description": "The token is fine but too narrow. The answer is 403, not 401, with error=\"insufficient_scope\" and the scope the client should ask for.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S13"
+      },
+      "story": "S13"
+    },
+    {
+      "id": "try-contract",
+      "label": "401 and 403 swapped",
+      "description": "insufficient_scope on a 401, invalid_token on a 403, and a 403 that forgets the scope each break the contract in a different way.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S14"
+      },
+      "story": "S14"
+    },
+    {
+      "id": "try-hostile",
+      "label": "A hostile condition",
+      "description": "Deep nesting and huge conditions stop at fixed limits with a clear error. Nothing recurses past them and nothing is evaluated.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S15"
+      },
+      "story": "S15"
+    },
+    {
+      "id": "try-redos",
+      "label": "A catastrophic regex",
+      "description": "The classic (a+)+$ can pin a CPU for minutes. The lab analyses the pattern first and refuses it.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S16"
+      },
+      "story": "S16"
+    },
+    {
+      "id": "try-as-down",
+      "label": "The introspection endpoint is down",
+      "description": "With the mock AS unreachable the route cannot decide. The lab answers 503 and says plainly that how real IG answers here is UNVERIFIED.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-S17"
+      },
+      "story": "S17"
+    },
+    {
+      "id": "concept-simulated",
+      "label": "What is simulated",
+      "description": "What this lab can and cannot show about real PingGateway.",
+      "group": "concept",
+      "action": {
+        "type": "route",
+        "href": "/#concept-simulated"
+      },
+      "terms": [
+        "simulated-evaluator",
+        "route-condition",
+        "route-order"
+      ]
+    },
+    {
+      "id": "concept-challenge",
+      "label": "Reading a 401 challenge",
+      "description": "Scheme, params, resource_metadata and the 401 versus 403 contract.",
+      "group": "concept",
+      "action": {
+        "type": "route",
+        "href": "/#concept-challenge"
+      },
+      "terms": [
+        "www-authenticate",
+        "empty-first-param",
+        "resource-metadata",
+        "insufficient-scope"
+      ]
+    },
+    {
+      "id": "ref-doctor",
+      "label": "Doctor and health",
+      "description": "Preflight checks and the demo-health/1 endpoint.",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/api/health"
+      }
+    }
+  ],
+  "stories": [
+    {
+      "id": "S01",
+      "title": "Same path, chosen by host",
+      "say": "Two routes match the same path. The host condition makes the door route win for its own host, and every other host falls through to the main route."
+    },
+    {
+      "id": "S02",
+      "title": "No route matches: a bare 404",
+      "say": "When no condition is true the gateway answers 404 with no body and no hint. The lab shows each condition and why it was false."
+    },
+    {
+      "id": "S03",
+      "title": "A broad route sorts first and shadows the specific one",
+      "say": "Both routes match /mcp/{{svc}}. The lab assumes routes are tried in name order, so the broad one answers and the specific one never does. Renaming fixes it."
+    },
+    {
+      "id": "S04",
+      "title": "The \\. trap: one backslash and the route is gone",
+      "say": "Inside a quoted condition string only \\' and \\\\ are legal escapes. Writing the natural regex \\. makes the condition unparseable, the route is not loaded, and requests get a bare 404 while everything else looks fine."
+    },
+    {
+      "id": "S05",
+      "title": "The fix: [.] instead of \\.",
+      "say": "A character class matches a literal dot with no escape at all, so the condition parses and the route loads."
+    },
+    {
+      "id": "S06",
+      "title": "A negative lookahead keeps other doors out",
+      "say": "The main route excludes /mcp/invest and /mcp/weather with (?!...). Those paths fall to their own routes; everything else under /mcp goes to main."
+    },
+    {
+      "id": "S07",
+      "title": "The challenge that broke a client: \"Bearer , resource_metadata\"",
+      "say": "A script appended \", resource_metadata=...\" to a param-less Bearer. The first auth-param is empty. One real client rejected it (reported earlier, not re-measured here)."
+    },
+    {
+      "id": "S08",
+      "title": "The fixed challenge",
+      "say": "With a space after the scheme and a comma only between params, the same 401 lints clean."
+    },
+    {
+      "id": "S09",
+      "title": "Three ways to break resource_metadata",
+      "say": "An http URL, an unquoted URL and a missing hint each fail in a different way."
+    },
+    {
+      "id": "S10",
+      "title": "Revoked and unknown tokens are inactive",
+      "say": "The mock AS answers {\"active\": false} and nothing else for a revoked or unknown token. The route turns that into 401 invalid_token."
+    },
+    {
+      "id": "S11",
+      "title": "A token expires on the virtual clock",
+      "say": "Nothing sleeps: the lab moves its own clock. At exp the AS says inactive."
+    },
+    {
+      "id": "S12",
+      "title": "Right scope, wrong audience",
+      "say": "The token is active and has the scope, but its aud names a different resource. The route refuses it with 401 invalid_token."
+    },
+    {
+      "id": "S13",
+      "title": "Insufficient scope is a 403 and names the scope",
+      "say": "The token is fine but too narrow. The answer is 403, not 401, with error=\"insufficient_scope\" and the scope the client should ask for."
+    },
+    {
+      "id": "S14",
+      "title": "401 and 403 swapped",
+      "say": "insufficient_scope on a 401, invalid_token on a 403, and a 403 that forgets the scope each break the contract in a different way."
+    },
+    {
+      "id": "S15",
+      "title": "A hostile condition is refused, not run",
+      "say": "Deep nesting and huge conditions stop at fixed limits with a clear error. Nothing recurses past them and nothing is evaluated."
+    },
+    {
+      "id": "S16",
+      "title": "A catastrophic regex is refused before it runs",
+      "say": "The classic (a+)+$ can pin a CPU for minutes. The lab analyses the pattern first and refuses it."
+    },
+    {
+      "id": "S17",
+      "title": "The introspection endpoint is down",
+      "say": "With the mock AS unreachable the route cannot decide. The lab answers 503 and says plainly that how real IG answers here is UNVERIFIED."
+    }
+  ]
+}

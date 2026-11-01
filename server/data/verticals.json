@@ -1,0 +1,56 @@
+[
+  {
+    "id": "travel",
+    "name": "Travel",
+    "cast": {
+      "host": "mcp.travel.example",
+      "hostRegex": "mcp[.]travel[.]example",
+      "hostRegexEscaped": "mcp\\.travel\\.example",
+      "otherHost": "other.travel.example",
+      "svc": "flights",
+      "product": "flight search",
+      "scopeRead": "flights:read",
+      "scopeOther": "loyalty:read",
+      "audience": "https://mcp.travel.example/mcp",
+      "metadataUrl": "https://mcp.travel.example/.well-known/oauth-protected-resource",
+      "client": "trip-planner",
+      "user": "Avery"
+    }
+  },
+  {
+    "id": "banking",
+    "name": "Banking",
+    "cast": {
+      "host": "mcp.bank.example",
+      "hostRegex": "mcp[.]bank[.]example",
+      "hostRegexEscaped": "mcp\\.bank\\.example",
+      "otherHost": "other.bank.example",
+      "svc": "accounts",
+      "product": "account lookup",
+      "scopeRead": "accounts:read",
+      "scopeOther": "payments:write",
+      "audience": "https://mcp.bank.example/mcp",
+      "metadataUrl": "https://mcp.bank.example/.well-known/oauth-protected-resource",
+      "client": "budget-coach",
+      "user": "Jordan"
+    }
+  },
+  {
+    "id": "retail",
+    "name": "Retail",
+    "cast": {
+      "host": "mcp.shop.example",
+      "hostRegex": "mcp[.]shop[.]example",
+      "hostRegexEscaped": "mcp\\.shop\\.example",
+      "otherHost": "other.shop.example",
+      "svc": "orders",
+      "product": "order status",
+      "scopeRead": "orders:read",
+      "scopeOther": "returns:write",
+      "audience": "https://mcp.shop.example/mcp",
+      "metadataUrl": "https://mcp.shop.example/.well-known/oauth-protected-resource",
+      "client": "order-helper",
+      "user": "Sam"
+    }
+  }
+]

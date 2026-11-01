@@ -1,0 +1,55 @@
+{
+  "name": "mcp-delegation",
+  "comment": "Delegation door. Its path also matches the broad main route, so ordering decides which one answers.",
+  "condition": "${find(request.uri.path, '^/mcp/delegation')}",
+  "heap": [
+    {
+      "comment": "Lab stand-in for a token introspection resolver (RFC 7662).",
+      "name": "DelegationResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${empty env['LAB_INTROSPECTION_ENDPOINT'] ? 'https://as.gw-lab.example/introspect' : env['LAB_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": {
+          "type": "ClientHandler"
+        }
+      }
+    },
+    {
+      "name": "DelegationResourceServerFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": true,
+        "scopes": [
+          "mcp:delegate"
+        ],
+        "accessTokenResolver": "DelegationResolver"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "Audit",
+          "type": "AuditFilter"
+        },
+        {
+          "name": "PathRewrite",
+          "type": "UriPathRewriteFilter"
+        },
+        "DelegationResourceServerFilter",
+        {
+          "name": "ProtocolCheck",
+          "type": "ProtocolValidationFilter"
+        }
+      ]
+    }
+  },
+  "lab": {
+    "audience": "https://mcp.gw-lab.example/mcp/delegation",
+    "metadataUrl": "https://mcp.gw-lab.example/.well-known/oauth-protected-resource",
+    "challengeStyle": "space",
+    "realm": "Gateway Lab"
+  }
+}

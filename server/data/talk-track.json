@@ -1,0 +1,12 @@
+{
+  "title": "Talk track",
+  "opening": [
+    "Open with the label: this is a simulated evaluator, not real PingGateway. Say what that buys you (the mechanics, instantly, with nothing installed) and what it does not (IG's own parse errors, route reload, handler chain).",
+    "The page is in Mock mode. Live is refused for now: there is no live lane, so nothing here reaches a real gateway. Press Live once to show the page saying so.",
+    "Presenter mode (P, or the Present button) hides the explanatory text and keeps the banner. Esc leaves it. Reset lab puts the routes, tokens, clock and diagram boxes back."
+  ],
+  "storiesIntro": "One line per story. Each is generated from the story data, filled with the cast of the {{vertical}} pack, so it cannot drift from what the lab runs.",
+  "closing": [
+    "Never say whether PingGateway runs without a licence. It is UNVERIFIED."
+  ]
+}

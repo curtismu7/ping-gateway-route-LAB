@@ -1,0 +1,1190 @@
+[
+  {
+    "id": "S01",
+    "slug": "route-hit-by-host",
+    "kind": "match",
+    "title": "Same path, chosen by host",
+    "takeaway": "Two routes match the same path. The host condition makes the door route win for its own host, and every other host falls through to the main route.",
+    "rules": [
+      "order-by-name"
+    ],
+    "routes": [
+      {
+        "name": "a-door",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "space"
+        }
+      },
+      {
+        "name": "b-main",
+        "condition": "${find(request.uri.path, '^/mcp')}",
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": []
+          }
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "match",
+        "say": "Request to the door host.",
+        "request": {
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "first": "a-door",
+          "shadowed": [
+            "b-main"
+          ],
+          "responseStatus": 200
+        }
+      },
+      {
+        "op": "match",
+        "say": "Same path, another host.",
+        "request": {
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{otherHost}}"
+          }
+        },
+        "expect": {
+          "first": "b-main",
+          "matches": [
+            "b-main"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "S02",
+    "slug": "route-miss",
+    "kind": "match",
+    "title": "No route matches: a bare 404",
+    "takeaway": "When no condition is true the gateway answers 404 with no body and no hint. The lab shows each condition and why it was false.",
+    "rules": [
+      "bare-404"
+    ],
+    "routes": "seed",
+    "steps": [
+      {
+        "op": "match",
+        "say": "A path nothing serves.",
+        "request": {
+          "url": "/nothing/here",
+          "headers": {
+            "Host": "mcp.gw-lab.example"
+          }
+        },
+        "expect": {
+          "first": null,
+          "matches": [],
+          "responseStatus": 404
+        }
+      }
+    ]
+  },
+  {
+    "id": "S03",
+    "slug": "ordering-conflict",
+    "kind": "match",
+    "title": "A broad route sorts first and shadows the specific one",
+    "takeaway": "Both routes match /mcp/{{svc}}. The lab assumes routes are tried in name order, so the broad one answers and the specific one never does. Renaming fixes it.",
+    "rules": [
+      "order-by-name"
+    ],
+    "routes": [
+      {
+        "name": "aa-broad",
+        "condition": "${find(request.uri.path, '^/mcp')}",
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": []
+          }
+        }
+      },
+      {
+        "name": "zz-specific",
+        "condition": "${find(request.uri.path, '^/mcp/{{svc}}')}",
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": []
+          }
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "match",
+        "say": "Broad route first.",
+        "request": {
+          "url": "/mcp/{{svc}}/search",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "first": "aa-broad",
+          "shadowed": [
+            "zz-specific"
+          ]
+        }
+      },
+      {
+        "op": "match",
+        "say": "After renaming the specific route to sort first.",
+        "routes": [
+          {
+            "name": "aa-broad",
+            "condition": "${find(request.uri.path, '^/mcp')}",
+            "handler": {
+              "type": "Chain",
+              "config": {
+                "filters": []
+              }
+            }
+          },
+          {
+            "name": "0-specific",
+            "condition": "${find(request.uri.path, '^/mcp/{{svc}}')}",
+            "handler": {
+              "type": "Chain",
+              "config": {
+                "filters": []
+              }
+            }
+          }
+        ],
+        "request": {
+          "url": "/mcp/{{svc}}/search",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "first": "0-specific",
+          "shadowed": [
+            "aa-broad"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "S04",
+    "slug": "dot-escape-trap",
+    "kind": "trap",
+    "title": "The \\. trap: one backslash and the route is gone",
+    "takeaway": "Inside a quoted condition string only \\' and \\\\ are legal escapes. Writing the natural regex \\. makes the condition unparseable, the route is not loaded, and requests get a bare 404 while everything else looks fine.",
+    "rules": [
+      "invalid-escape"
+    ],
+    "routes": [
+      {
+        "name": "trap-door",
+        "condition": "${not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegexEscaped}}$')}",
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": []
+          }
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "condition",
+        "say": "The condition as written.",
+        "condition": "${not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegexEscaped}}$')}",
+        "request": {
+          "url": "/mcp",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "ok": false,
+          "phase": "parse",
+          "code": "invalid_escape",
+          "igEffect": "route_not_loaded"
+        }
+      },
+      {
+        "op": "match",
+        "say": "The request it should have served.",
+        "request": {
+          "url": "/mcp",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "first": null,
+          "notLoaded": [
+            "trap-door"
+          ],
+          "responseStatus": 404
+        }
+      }
+    ]
+  },
+  {
+    "id": "S05",
+    "slug": "dot-fix-character-class",
+    "kind": "trap",
+    "title": "The fix: [.] instead of \\.",
+    "takeaway": "A character class matches a literal dot with no escape at all, so the condition parses and the route loads.",
+    "rules": [
+      "invalid-escape"
+    ],
+    "routes": [
+      {
+        "name": "fixed-door",
+        "condition": "${not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": []
+          }
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "match",
+        "say": "Same request, fixed condition.",
+        "request": {
+          "url": "/mcp",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "first": "fixed-door",
+          "notLoaded": [],
+          "responseStatus": 200
+        }
+      }
+    ]
+  },
+  {
+    "id": "S06",
+    "slug": "lookahead-exclusion",
+    "kind": "match",
+    "title": "A negative lookahead keeps other doors out",
+    "takeaway": "The main route excludes /mcp/invest and /mcp/weather with (?!...). Those paths fall to their own routes; everything else under /mcp goes to main.",
+    "rules": [
+      "order-by-name"
+    ],
+    "routes": [
+      {
+        "name": "a-main",
+        "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)')}",
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": []
+          }
+        }
+      },
+      {
+        "name": "b-invest",
+        "condition": "${find(request.uri.path, '^/mcp/invest')}",
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": []
+          }
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "match",
+        "say": "/mcp/invest goes to its own route.",
+        "request": {
+          "url": "/mcp/invest/quote",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "first": "b-invest",
+          "matches": [
+            "b-invest"
+          ]
+        }
+      },
+      {
+        "op": "match",
+        "say": "Anything else under /mcp goes to main.",
+        "request": {
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "first": "a-main",
+          "matches": [
+            "a-main"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "S07",
+    "slug": "comma-before-first-param",
+    "kind": "lint",
+    "title": "The challenge that broke a client: \"Bearer , resource_metadata\"",
+    "takeaway": "A script appended \", resource_metadata=...\" to a param-less Bearer. The first auth-param is empty. One real client rejected it (reported earlier, not re-measured here).",
+    "rules": [
+      "WA001"
+    ],
+    "routes": [
+      {
+        "name": "door-bug",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "comma-bug"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "handle",
+        "say": "Call with no token.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "matched": "door-bug",
+          "decision": "deny",
+          "responseStatus": 401,
+          "hasRules": [
+            "WA001"
+          ],
+          "challenge": "Bearer , resource_metadata=\"{{metadataUrl}}\""
+        }
+      },
+      {
+        "op": "lint",
+        "say": "The same header as a literal.",
+        "header": "Bearer , resource_metadata=\"{{metadataUrl}}\"",
+        "status": 401,
+        "expect": {
+          "clean": false,
+          "hasRules": [
+            "WA001"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "S08",
+    "slug": "space-before-first-param",
+    "kind": "lint",
+    "title": "The fixed challenge",
+    "takeaway": "With a space after the scheme and a comma only between params, the same 401 lints clean.",
+    "rules": [
+      "WA001"
+    ],
+    "routes": [
+      {
+        "name": "door-ok",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "space"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "handle",
+        "say": "Call with no token.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}"
+          }
+        },
+        "expect": {
+          "matched": "door-ok",
+          "responseStatus": 401,
+          "clean": true,
+          "challenge": "Bearer resource_metadata=\"{{metadataUrl}}\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "S09",
+    "slug": "bad-challenge-shapes",
+    "kind": "lint",
+    "title": "Three ways to break resource_metadata",
+    "takeaway": "An http URL, an unquoted URL and a missing hint each fail in a different way.",
+    "rules": [
+      "WA004",
+      "WA006",
+      "WA007"
+    ],
+    "routes": [],
+    "steps": [
+      {
+        "op": "lint",
+        "say": "http instead of https.",
+        "header": "Bearer resource_metadata=\"http://{{host}}/.well-known/oauth-protected-resource\"",
+        "status": 401,
+        "expect": {
+          "hasRules": [
+            "WA007"
+          ]
+        }
+      },
+      {
+        "op": "lint",
+        "say": "URL without quotes.",
+        "header": "Bearer resource_metadata={{metadataUrl}}",
+        "status": 401,
+        "expect": {
+          "hasRules": [
+            "WA004"
+          ]
+        }
+      },
+      {
+        "op": "lint",
+        "say": "No hint at all.",
+        "header": "Bearer realm=\"Gateway Lab\"",
+        "status": 401,
+        "expect": {
+          "hasRules": [
+            "WA006"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "S10",
+    "slug": "inactive-token",
+    "kind": "introspection",
+    "title": "Revoked and unknown tokens are inactive",
+    "takeaway": "The mock AS answers {\"active\": false} and nothing else for a revoked or unknown token. The route turns that into 401 invalid_token.",
+    "rules": [
+      "rfc7662-inactive"
+    ],
+    "routes": [
+      {
+        "name": "door-ok",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "space"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "issue",
+        "say": "Issue a good token.",
+        "as": "t1",
+        "client_id": "{{client}}",
+        "scope": "{{scopeRead}}",
+        "aud": "{{audience}}",
+        "expect": {
+          "status": 200
+        }
+      },
+      {
+        "op": "handle",
+        "say": "It works.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer @t1"
+          }
+        },
+        "expect": {
+          "decision": "allow",
+          "responseStatus": 200,
+          "reason": "token_ok"
+        }
+      },
+      {
+        "op": "revoke",
+        "say": "Revoke it.",
+        "token": "t1",
+        "expect": {}
+      },
+      {
+        "op": "handle",
+        "say": "Now the AS says inactive.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer @t1"
+          }
+        },
+        "expect": {
+          "decision": "deny",
+          "responseStatus": 401,
+          "reason": "inactive_token",
+          "introspection": {
+            "active": false
+          },
+          "clean": true
+        }
+      },
+      {
+        "op": "handle",
+        "say": "A token the AS never issued.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer mock-tok-000000000000000000000000"
+          }
+        },
+        "expect": {
+          "reason": "inactive_token"
+        }
+      }
+    ]
+  },
+  {
+    "id": "S11",
+    "slug": "expired-token",
+    "kind": "introspection",
+    "title": "A token expires on the virtual clock",
+    "takeaway": "Nothing sleeps: the lab moves its own clock. At exp the AS says inactive.",
+    "rules": [
+      "rfc7662-exp"
+    ],
+    "routes": [
+      {
+        "name": "door-ok",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "space"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "issue",
+        "say": "A 60-second token.",
+        "as": "t1",
+        "scope": "{{scopeRead}}",
+        "aud": "{{audience}}",
+        "ttl": 60,
+        "expect": {
+          "status": 200
+        }
+      },
+      {
+        "op": "handle",
+        "say": "Fresh.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer @t1"
+          }
+        },
+        "expect": {
+          "decision": "allow"
+        }
+      },
+      {
+        "op": "advance",
+        "say": "Move the clock 61 seconds.",
+        "seconds": 61,
+        "expect": {}
+      },
+      {
+        "op": "handle",
+        "say": "Expired.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer @t1"
+          }
+        },
+        "expect": {
+          "decision": "deny",
+          "responseStatus": 401,
+          "reason": "inactive_token"
+        }
+      }
+    ]
+  },
+  {
+    "id": "S12",
+    "slug": "wrong-audience",
+    "kind": "introspection",
+    "title": "Right scope, wrong audience",
+    "takeaway": "The token is active and has the scope, but its aud names a different resource. The route refuses it with 401 invalid_token.",
+    "rules": [
+      "rfc7662-aud"
+    ],
+    "routes": [
+      {
+        "name": "door-ok",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "space"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "issue",
+        "say": "A token for another API.",
+        "as": "t1",
+        "scope": "{{scopeRead}}",
+        "aud": "https://{{otherHost}}/api",
+        "expect": {
+          "status": 200
+        }
+      },
+      {
+        "op": "handle",
+        "say": "Presented here.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer @t1"
+          }
+        },
+        "expect": {
+          "decision": "deny",
+          "responseStatus": 401,
+          "reason": "wrong_audience",
+          "introspection": {
+            "active": true
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "S13",
+    "slug": "insufficient-scope-403",
+    "kind": "contract",
+    "title": "Insufficient scope is a 403 and names the scope",
+    "takeaway": "The token is fine but too narrow. The answer is 403, not 401, with error=\"insufficient_scope\" and the scope the client should ask for.",
+    "rules": [
+      "WA015",
+      "WA017"
+    ],
+    "routes": [
+      {
+        "name": "door-ok",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "space"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "issue",
+        "say": "A token with the wrong scope.",
+        "as": "t1",
+        "scope": "{{scopeOther}}",
+        "aud": "{{audience}}",
+        "expect": {
+          "status": 200
+        }
+      },
+      {
+        "op": "handle",
+        "say": "Presented here.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer @t1"
+          }
+        },
+        "expect": {
+          "decision": "deny",
+          "responseStatus": 403,
+          "reason": "insufficient_scope",
+          "clean": true
+        }
+      }
+    ]
+  },
+  {
+    "id": "S14",
+    "slug": "status-contract-miswired",
+    "kind": "contract",
+    "title": "401 and 403 swapped",
+    "takeaway": "insufficient_scope on a 401, invalid_token on a 403, and a 403 that forgets the scope each break the contract in a different way.",
+    "rules": [
+      "WA015",
+      "WA016",
+      "WA017"
+    ],
+    "routes": [],
+    "steps": [
+      {
+        "op": "lint",
+        "say": "401 with insufficient_scope.",
+        "header": "Bearer error=\"insufficient_scope\", scope=\"{{scopeRead}}\", resource_metadata=\"{{metadataUrl}}\"",
+        "status": 401,
+        "expect": {
+          "hasRules": [
+            "WA015"
+          ]
+        }
+      },
+      {
+        "op": "lint",
+        "say": "403 with invalid_token.",
+        "header": "Bearer error=\"invalid_token\", resource_metadata=\"{{metadataUrl}}\"",
+        "status": 403,
+        "expect": {
+          "hasRules": [
+            "WA016"
+          ]
+        }
+      },
+      {
+        "op": "lint",
+        "say": "403 insufficient_scope with no scope.",
+        "header": "Bearer error=\"insufficient_scope\"",
+        "status": 403,
+        "expect": {
+          "hasRules": [
+            "WA017"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "S15",
+    "slug": "hostile-condition",
+    "kind": "hostile",
+    "title": "A hostile condition is refused, not run",
+    "takeaway": "Deep nesting and huge conditions stop at fixed limits with a clear error. Nothing recurses past them and nothing is evaluated.",
+    "rules": [
+      "limits"
+    ],
+    "routes": [],
+    "steps": [
+      {
+        "op": "condition",
+        "say": "200 nested parentheses.",
+        "condition": {
+          "nest": {
+            "open": "(",
+            "close": ")",
+            "core": "true",
+            "n": 200
+          }
+        },
+        "request": {
+          "url": "/"
+        },
+        "expect": {
+          "ok": false,
+          "phase": "parse",
+          "code": "too_deep"
+        }
+      },
+      {
+        "op": "condition",
+        "say": "A condition of 3,000+ characters.",
+        "condition": {
+          "chain": {
+            "term": "true",
+            "sep": " and ",
+            "n": 600
+          }
+        },
+        "request": {
+          "url": "/"
+        },
+        "expect": {
+          "ok": false,
+          "phase": "parse",
+          "code": "too_long"
+        }
+      }
+    ]
+  },
+  {
+    "id": "S16",
+    "slug": "redos-regex",
+    "kind": "hostile",
+    "title": "A catastrophic regex is refused before it runs",
+    "takeaway": "The classic (a+)+$ can pin a CPU for minutes. The lab analyses the pattern first and refuses it.",
+    "rules": [
+      "regex-guard"
+    ],
+    "routes": [],
+    "steps": [
+      {
+        "op": "condition",
+        "say": "find() with a nested quantifier.",
+        "condition": "${find(request.uri.path, '(a+)+$')}",
+        "request": {
+          "url": "/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"
+        },
+        "expect": {
+          "ok": false,
+          "phase": "evaluate",
+          "code": "regex_nested_quantifier"
+        }
+      }
+    ]
+  },
+  {
+    "id": "S17",
+    "slug": "introspection-endpoint-down",
+    "kind": "introspection",
+    "title": "The introspection endpoint is down",
+    "takeaway": "With the mock AS unreachable the route cannot decide. The lab answers 503 and says plainly that how real IG answers here is UNVERIFIED.",
+    "rules": [
+      "as-down"
+    ],
+    "routes": [
+      {
+        "name": "door-ok",
+        "condition": "${find(request.uri.path, '^/mcp') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^{{hostRegex}}$')}",
+        "heap": [
+          {
+            "name": "DoorResolver",
+            "type": "TokenIntrospectionAccessTokenResolver",
+            "config": {
+              "endpoint": "https://as.gw-lab.example/introspect",
+              "providerHandler": {
+                "type": "ClientHandler"
+              }
+            }
+          },
+          {
+            "name": "DoorResourceServerFilter",
+            "type": "OAuth2ResourceServerFilter",
+            "config": {
+              "requireHttps": true,
+              "scopes": [
+                "{{scopeRead}}"
+              ],
+              "accessTokenResolver": "DoorResolver"
+            }
+          }
+        ],
+        "handler": {
+          "type": "Chain",
+          "config": {
+            "filters": [
+              "DoorResourceServerFilter"
+            ]
+          }
+        },
+        "lab": {
+          "audience": "{{audience}}",
+          "metadataUrl": "{{metadataUrl}}",
+          "challengeStyle": "space"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "op": "issue",
+        "say": "A good token.",
+        "as": "t1",
+        "scope": "{{scopeRead}}",
+        "aud": "{{audience}}",
+        "expect": {
+          "status": 200
+        }
+      },
+      {
+        "op": "fault",
+        "say": "Take the AS down.",
+        "mode": "down",
+        "expect": {}
+      },
+      {
+        "op": "handle",
+        "say": "Presented while it is down.",
+        "request": {
+          "method": "POST",
+          "url": "/mcp/{{svc}}",
+          "headers": {
+            "Host": "{{host}}",
+            "Authorization": "Bearer @t1"
+          }
+        },
+        "expect": {
+          "decision": "deny",
+          "responseStatus": 503,
+          "reason": "introspection_unavailable"
+        }
+      }
+    ]
+  }
+]

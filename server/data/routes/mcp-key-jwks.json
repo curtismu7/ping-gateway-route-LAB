@@ -1,0 +1,28 @@
+{
+  "name": "mcp-key-jwks",
+  "comment": "API-key door, signature-checked variant.",
+  "condition": "${find(request.uri.path, '^/mcp/apikey') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "Audit",
+          "type": "AuditFilter"
+        },
+        {
+          "name": "JwksCheck",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "jwks-check.groovy"
+          }
+        },
+        {
+          "name": "ProtocolCheck",
+          "type": "ProtocolValidationFilter"
+        }
+      ]
+    }
+  }
+}

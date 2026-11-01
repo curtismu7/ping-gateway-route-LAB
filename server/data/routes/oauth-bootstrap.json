@@ -1,0 +1,9 @@
+{
+  "name": "oauth-bootstrap",
+  "comment": "Discovery and registration endpoints passed straight to the authorization server. A literal dot is written [.] because \\. is an invalid escape in a condition string.",
+  "condition": "${find(request.uri.path, '^/([.]well-known/(oauth-authorization-server|oauth-protected-resource|openid-configuration)|register|authorize(/callback)?|token|jwks|userinfo)$')}",
+  "handler": {
+    "type": "ReverseProxyHandler"
+  },
+  "baseURI": "https://as.gw-lab.example"
+}

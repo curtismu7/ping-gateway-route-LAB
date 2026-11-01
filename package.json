@@ -1,0 +1,29 @@
+{
+  "name": "ping-gateway-route-lab",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Interactive lab for PingGateway route behaviour with no real PingGateway: a SIMULATED route-condition evaluator, a WWW-Authenticate / RFC 9728 linter, an RFC 7662 introspection stub and a request-to-route table. Mock mode only (Live is refused for now). Not real PingGateway.",
+  "license": "MIT",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "start": "npm start -w server",
+    "build": "npm run build -w web",
+    "test": "npm test -w server && npm test -w web && node --test scripts/*.test.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "reset": "node scripts/reset.mjs",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "talk-track": "node scripts/build-talk-track.mjs",
+    "content-pack": "node scripts/build-content-pack.mjs && node scripts/validate-content-pack.mjs",
+    "mutation-check": "node scripts/mutation-check.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0"
+  }
+}

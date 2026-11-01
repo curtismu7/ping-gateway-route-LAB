@@ -1,0 +1,16 @@
+{
+  "name": "account-context",
+  "comment": "Small header-adding route; exact path match.",
+  "condition": "${find(request.uri.path, '^/authorize/account-context$')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "AddHeader",
+          "type": "HeaderFilter"
+        }
+      ]
+    }
+  }
+}

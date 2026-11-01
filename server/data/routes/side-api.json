@@ -1,0 +1,25 @@
+{
+  "name": "side-api",
+  "comment": "Only exists when an environment value is set; the condition tests env first.",
+  "condition": "${not empty env['LAB_SIDE_API_URL'] and find(request.uri.path, '^/side')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "SideBand",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "side-band.groovy"
+          }
+        },
+        {
+          "name": "UriRewrite",
+          "type": "UriPathRewriteFilter"
+        }
+      ]
+    }
+  },
+  "baseURI": "https://side.gw-lab.example"
+}
