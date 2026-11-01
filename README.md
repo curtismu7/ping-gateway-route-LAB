@@ -148,7 +148,7 @@ Some tests exercise refusals on purpose (a 400 or 404 from the API); a browser c
 - **`npm test` or `npm start` says Node is too old:** this app needs Node 26 or newer (`node -v`).
 - **The page says "Could not reach the lab server":** start the server (`npm start`), and open the same port it printed.
 - **The page is blank or old after a change:** run `npm run build` again; the server serves `web/dist`.
-- **Pressing Live only shows a message:** Live is off. The message beside the switch says why: set `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` in the shared settings file and restart.
+- **Pressing Live only shows a message:** Live is off. The message beside the switch says why: when you run the lab on your machine (`npm start`), set `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` in the shared settings file and restart. In the Docker container Live always stays off.
 - **A Live send says "connection refused" or "timeout":** nothing answers at the target. Check the gateway is running and that the target is its origin; the doctor does not contact it.
 - **A Live send says the TLS handshake failed:** the scheme is probably wrong (https against a plain-http port, or the reverse).
 

@@ -116,7 +116,11 @@ test('bounds: the read stops at 16 KB, the preview at 1024 characters, a binary 
   await withGateway(async (gw, g) => {
     const big = await sendLive({ target: target(gw.origin), request: valid({ url: '/big' }) });
     assert.equal(big.actual.body.bytesRead, LIVE_LIMITS.maxReadBytes); assert.equal(big.actual.body.truncated, true);
-    assert.ok(big.actual.body.preview.length <= LIVE_LIMITS.previewChars);
+    assert.equal(LIVE_LIMITS.previewChars, 1024, 'the documented preview cap');
+    const words = await sendLive({ target: target(gw.origin), request: valid({ url: '/words' }) });
+    assert.equal(words.actual.body.bytesRead, LIVE_LIMITS.maxReadBytes);
+    assert.equal(words.actual.body.preview.length, 1024, 'a 16 KB read of ordinary text is cut to exactly 1024 characters (a literal, not the constant under test)');
+    assert.equal(words.actual.body.truncated, true);
     const bin = await sendLive({ target: target(gw.origin), request: valid({ url: '/binary' }) });
     assert.equal(bin.actual.body.binary, true); assert.equal(bin.actual.body.preview, ''); assert.equal(bin.actual.body.bytesRead, 5);
     const t0 = Date.now();
@@ -151,6 +155,9 @@ test('the redirect-free, body-free POST sends Content-Length 0; HEAD and OPTIONS
     const r = await sendLive({ target: target(gw.origin), request: valid({ method: 'POST', url: '/health' }) });
     assert.equal(r.ok, true);
     assert.equal(gw.seen[0].headers['content-length'], '0');
+    assert.equal(gw.seen[0].body, '', 'no body byte is ever written');
+    assert.equal(gw.wire.text.split('\r\n\r\n').slice(1).join(''), '', 'nothing follows the blank line that ends the headers on the wire');
+    assert.ok(!gw.wire.text.includes('x=1'));
     assert.equal((await sendLive({ target: target(gw.origin), request: valid({ method: 'HEAD', url: '/health' }) })).actual.status, 200);
   });
 });
@@ -173,6 +180,18 @@ test('a bearer token is never echoed, logged or kept: not in what was sent, not 
     });
   } finally { undo.forEach((f) => f()); spy.forEach((f) => f()); }
   assert.ok(!written.join('\n').includes(TOKEN), 'not in anything written to stdout or stderr or the console');
+});
+
+test('a token the gateway reflects into its response headers is removed from them, even a short one no generic rule would catch', async () => {
+  const short = ['Zk9xT7', 'mP2vL'].join('');
+  await withGateway(async (gw) => {
+    const r = await sendLive({ target: target(gw.origin), request: valid({ url: '/reflect', headers: { Authorization: `Bearer ${short}` } }) });
+    assert.equal(r.ok, true);
+    assert.equal(gw.seen[0].headers.authorization, `Bearer ${short}`, 'the gateway did receive it');
+    assert.ok(!JSON.stringify(r).includes(short), 'but it is in no part of what the page is given');
+    assert.match(r.actual.headers['www-authenticate'], /hint=\[hidden\]/);
+    assert.match(r.actual.headers.location, /hint=\[hidden\]/);
+  });
 });
 
 test('a mock-issued token is shown raw and labelled; any other token is hidden', () => {

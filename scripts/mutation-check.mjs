@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+const ECHO_TESTS = ['echoGuard.test.js'];
 const LIVE_TESTS = ['netguardPermit.test.js', 'liveTarget.test.js', 'liveClient.test.js', 'live.test.js'];
 
 export const MUTATIONS = [
@@ -107,6 +108,14 @@ export const MUTATIONS = [
   ['netguard: a permit allows any port', 'netguard.js', ' || port !== permit.port) {', ') {', LIVE_TESTS],
   ['netguard: the permit stays open after the call', 'netguard.js', 'finally { permit.open = false; permitsActive -= 1; }', 'finally { permitsActive -= 1; }', LIVE_TESTS],
   ['netguard: fetch allowed inside a permit', 'netguard.js', 'if (permitScope.getStore()) { attempts.push(`permit:fetch:', 'if (false) { attempts.push(`permit:fetch:', LIVE_TESTS],
+  // added in the fix pass after an independent mutation run found these three unpinned, plus the simulator echo
+  ['client: the preview cap is raised', 'liveClient.js', 'previewChars: 1024', 'previewChars: 102400', LIVE_TESTS],
+  ['client: response headers are not masked with the secrets', 'liveClient.js', 'LIVE_LIMITS.maxResponseHeaderValue, secrets)', 'LIVE_LIMITS.maxResponseHeaderValue, [])', LIVE_TESTS],
+  ['client: a POST writes a body', 'liveClient.js', '    req.end();', "    if (request.method === 'POST') req.end('x=1'); else req.end();", LIVE_TESTS],
+  ['echo: the simulator echo is not hidden while Live is allowed', 'app.js', 'res.json(live.status().enabled ? hideCredentials(body, request) : body)', 'res.json(body)', [...ECHO_TESTS]],
+  ['echo: the exact token is not removed from the rest of the answer', 'echoGuard.js', 'const secrets = credentialsIn(request).filter((s) => s.length >= MIN_SECRET);', 'const secrets = [];', ECHO_TESTS],
+  ['echo: the Authorization value is not hidden', 'echoGuard.js', 'if (!c.token || MOCK_TOKEN.test(c.token)) return v;', 'return v;', ECHO_TESTS],
+  ['echo: a mock-issued token is hidden too', 'echoGuard.js', 'if (!c.token || MOCK_TOKEN.test(c.token)) return v;', 'if (!c.token) return v;', ECHO_TESTS],
 ];
 
 function run(label, file, from, to, only) {

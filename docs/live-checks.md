@@ -50,3 +50,5 @@ All of them change a gateway you control.
 7. Check the licence terms of the image you used before telling anyone it is free to run. UNVERIFIED until you have read them.
 
 Record the result next to the item and change the text in `docs/safety.md` from UNVERIFIED only when you have the evidence.
+
+Before you screen-share a Live run: the gateway's own answer is shown as it came back, so its real host name (for example in the LX3 challenge) is on screen. These docs show it as `<host>`; the page does not.

@@ -13,7 +13,7 @@
     "method": "GET",
     "url": "/no-such-route",
     "shows": "What a request that no route claims gets back. The simulator predicts a bare 404 with an empty body; the real gateway decides the body.",
-    "bearsOn": []
+    "bearsOn": [4]
   },
   {
     "id": "LX3",
@@ -21,7 +21,7 @@
     "method": "GET",
     "url": "/mcp/x",
     "shows": "The 401 and its WWW-Authenticate challenge from a route behind a resource-server filter. The challenge from the real gateway is linted by the same rules as the simulated one.",
-    "bearsOn": []
+    "bearsOn": [12]
   },
   {
     "id": "LX4",
