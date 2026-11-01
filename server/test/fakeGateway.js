@@ -33,8 +33,15 @@ export const testCert = () => { cached ||= selfSignedCert(); return cached; };
 export async function startFakeGateway({ secure = true, redirectTo = 'http://127.0.0.1:9/never' } = {}) {
   const seen = [];
   const pending = new Set();
+  // The answer waits for the end of the request, so `body` (every byte the client wrote) is complete when a test reads `seen`.
   const handler = (req, res) => {
-    seen.push({ method: req.method, url: req.url, headers: { ...req.headers }, remote: req.socket.remoteAddress });
+    const entry = { method: req.method, url: req.url, headers: { ...req.headers }, remote: req.socket.remoteAddress, body: '' };
+    seen.push(entry);
+    req.on('data', (c) => { entry.body += c.toString('latin1'); });
+    req.on('end', () => answer(req, res));
+    req.on('error', () => {});
+  };
+  const answer = (req, res) => {
     const path = req.url.split('?')[0];
     const send = (status, headers, body) => { res.writeHead(status, headers); res.end(body); };
     switch (path) {
@@ -42,8 +49,11 @@ export async function startFakeGateway({ secure = true, redirectTo = 'http://127
       case '/bare': return send(404, {}, '');
       case '/challenge': return send(401, { 'www-authenticate': 'Bearer realm="gw", resource_metadata="https://meta.example/.well-known/oauth-protected-resource"', 'set-cookie': 'sid=SESSIONSECRET123; HttpOnly', 'x-internal-thing': 'hidden', server: 'fake/1', 'content-type': 'application/json' }, '{"error":"invalid_token"}');
       case '/echo': return send(200, { 'content-type': 'application/json' }, JSON.stringify({ got: req.headers, url: req.url }));
+      // Reflects the request's bearer token (short, so only the exact-secret rule can catch it) into allow-listed response headers.
+      case '/reflect': { const tok = String(req.headers.authorization || '').replace(/^Bearer /, ''); return send(200, { 'content-type': 'text/plain', 'www-authenticate': `Bearer error="x", hint=${tok}`, location: `/next?hint=${tok}` }, 'ok'); }
       case '/redirect': return send(302, { location: redirectTo }, '');
       case '/big': return send(200, { 'content-type': 'text/plain' }, 'A'.repeat(200_000));
+      case '/words': return send(200, { 'content-type': 'text/plain' }, 'ab '.repeat(10_000)); // ordinary text: nothing for the masker to fold
       case '/binary': return send(200, { 'content-type': 'application/octet-stream' }, Buffer.from([1, 2, 3, 4, 5]));
       case '/jwt-late': return send(200, { 'content-type': 'text/plain' }, `${'a '.repeat(500)}${JWT} tail`);
       case '/leaky': return send(200, { 'content-type': 'application/json', 'www-authenticate': `Bearer error="x", note="${JWT}"` }, '{"access_token":"plainsecretvalue123","password":"hunter2hunter2","note":"fine"}');
@@ -56,9 +66,12 @@ export async function startFakeGateway({ secure = true, redirectTo = 'http://127
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const port = server.address().port;
   const conns = new Set();
+  // Every byte that arrives on any connection after TLS (so the request line, the headers and anything written after them), as text.
+  const wire = { text: '' };
+  server.on(secure ? 'secureConnection' : 'connection', (s) => { s.on('data', (c) => { wire.text += c.toString('latin1'); }); });
   server.on('connection', (s) => { conns.add(s); s.on('close', () => conns.delete(s)); });
   return {
-    port, seen, origin: `${secure ? 'https' : 'http'}://127.0.0.1:${port}`, localhostOrigin: `${secure ? 'https' : 'http'}://localhost:${port}`,
+    port, seen, wire, origin: `${secure ? 'https' : 'http'}://127.0.0.1:${port}`, localhostOrigin: `${secure ? 'https' : 'http'}://localhost:${port}`,
     async close() { for (const r of pending) r.destroy(); for (const s of conns) s.destroy(); await new Promise((r) => server.close(r)); },
   };
 }

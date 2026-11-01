@@ -17,6 +17,7 @@ import { SCENARIOS, VERTICALS, getScenario, getVertical, storyCorpus, renderScen
 import { newTraceparent, childTraceparent } from './trace.js';
 import { modeInfo } from './config.js';
 import { createLive } from './live.js';
+import { hideCredentials } from './echoGuard.js';
 import { LIVE_LIMITS, METHOD_ALLOW, REQUEST_HEADER_ALLOW, RESPONSE_HEADER_ALLOW } from './liveClient.js';
 import { LIVE_EXPERIMENTS } from './liveExperiments.js';
 import { DIAGRAM_NAMES, hasDiagram, rawDiagram } from './diagramData.js';
@@ -50,6 +51,8 @@ export function createApp({ live = createLive(), health = createHealth({ runtime
   api.use(express.json({ limit: '64kb' }));
   api.use(express.urlencoded({ extended: false, limit: '8kb' }));
   api.use('/health', health.router);
+  // While Live is allowed, a credential typed into the simulator is hidden in what the simulator echoes back (see echoGuard.js).
+  const echo = (res, body, request) => res.json(live.status().enabled ? hideCredentials(body, request) : body);
   const strip = (m) => { const { trace: _t, context: _c, routeSet: _r, ...rest } = m; return { ...rest, entries: m.entries && m.entries.map(({ trace: _x, ...e }) => e) }; };
 
   api.get('/catalog', (req, res) => {
@@ -108,7 +111,7 @@ export function createApp({ live = createLive(), health = createHealth({ runtime
     const r = checkCondition(condition, request);
     if (r.error && r.error.code === 'bad_request') return bad(res, r.error.message);
     const { trace, ...rest } = r;
-    res.json({ simulated: true, ...rest, trace });
+    echo(res, { simulated: true, ...rest, trace }, request);
   });
   api.post('/match', (req, res) => {
     const { request, routes } = req.body || {};
@@ -116,14 +119,14 @@ export function createApp({ live = createLive(), health = createHealth({ runtime
     if (routes !== undefined) { if (!Array.isArray(routes) || routes.length > ROUTE_LIMITS.maxRoutes) return bad(res, 'routes must be a short list'); set = buildRouteSet(routes); }
     const m = matchRequest(set, request);
     if (!m.ok) return bad(res, m.error.message);
-    res.json({ simulated: true, ...strip(m) });
+    echo(res, { simulated: true, ...strip(m) }, request);
   });
   api.post('/handle', (req, res) => {
     const { request } = req.body || {};
     const h = handleRequest({ routeSet: world.routeSet, input: request, as: world.as });
     if (!h.ok) return bad(res, h.error.message);
     const { match, ...rest } = h;
-    res.json({ simulated: true, ...rest, entries: match.entries.map(({ trace: _t, ...e }) => e) });
+    echo(res, { simulated: true, ...rest, entries: match.entries.map(({ trace: _t, ...e }) => e) }, request);
   });
 
   api.post('/lint/www-authenticate', (req, res) => {

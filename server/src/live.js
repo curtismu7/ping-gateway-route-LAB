@@ -15,7 +15,7 @@ import { lintWwwAuthenticate } from './wwwauth.js';
 import { mask, preview } from './liveSanitize.js';
 import { activePermits, installNetguard, withPermit } from './netguard.js';
 
-export const LIVE_OFF = 'Live is off. It is opt-in: set ROUTE_LAB_LIVE=1 and ROUTE_LAB_LIVE_TARGET (your local gateway, for example https://localhost:3036) in the shared settings file ~/Development/.env, then restart. The page stays in Mock and everything on screen is simulated.';
+export const LIVE_OFF = 'Live is off. It is opt-in and host-run: when you start the lab on your machine (npm start), set ROUTE_LAB_LIVE=1 and ROUTE_LAB_LIVE_TARGET (your local gateway, for example https://localhost:3036) in the shared settings file ~/Development/.env, then restart. In the Docker container Live always stays off. The page stays in Mock and everything on screen is simulated.';
 export const LIVE_BAD_FLAG = 'ROUTE_LAB_LIVE must be exactly 1 to turn Live on. The page stays in Mock and everything on screen is simulated.';
 export const LIVE_BIND = 'Live is refused because the server is bound beyond loopback outside the loopback-published container. The page stays in Mock.';
 

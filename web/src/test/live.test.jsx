@@ -115,6 +115,24 @@ describe("Live mode in the page", () => {
     expect(within(result).getByTestId("live-sent")).toHaveTextContent(/Authorization: Bearer \[hidden: 28 characters\]/);
   });
 
+  it("a token typed in Live mode is hidden in the simulator's own echo and in the Raw tab, not only in the real-gateway panel", async () => {
+    const user = await open();
+    await goLive(user);
+    await tab(user, "Request simulator");
+    await setField(user, "Bearer token", TOKEN);
+    await user.click(screen.getByRole("button", { name: "Send through handler" }));
+    await screen.findByTestId("handle-result");
+    expect(document.body.textContent).not.toContain(TOKEN);
+    await tab(user, "Raw");
+    const raw = await screen.findByTestId("raw-request");
+    expect(raw).toHaveTextContent(/Authorization: Bearer \[hidden: 28 characters\]/);
+    expect(document.body.textContent).not.toContain(TOKEN);
+    await tab(user, "Request simulator");
+    await user.click(screen.getByRole("button", { name: "Match routes" }));
+    await screen.findByTestId("match-verdict");
+    expect(document.body.textContent).not.toContain(TOKEN);
+  });
+
   it("the experiments fill the request form; a refusal (a cookie) and an unreachable gateway are shown as errors with the prediction", async () => {
     const user = await open();
     await goLive(user);

@@ -29,7 +29,7 @@ const TOKEN_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,60}$/;
 const BEARER = /^Bearer ([A-Za-z0-9._~+/-]{1,4096}=*)$/;
 const HOST_VALUE = /^(?:[A-Za-z0-9.-]{1,253}|\[[0-9A-Fa-f:.]{2,45}\])(?::\d{1,5})?$/;
 const TRACEPARENT = /^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/;
-const MOCK_TOKEN = /^mock-tok-[0-9a-f]{24}$/;
+export const MOCK_TOKEN = /^mock-tok-[0-9a-f]{24}$/;
 const bad = (message) => ({ ok: false, message });
 
 // Checks a request against the allow-lists. Error texts are fixed: nothing the visitor typed is echoed back.

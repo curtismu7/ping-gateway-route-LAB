@@ -42,8 +42,8 @@ These experiments are unauthenticated GET requests and change nothing on the gat
 | Id | Request | What it shows | Bears on (docs/safety.md item) |
 | --- | --- | --- | --- |
 | LX1 | `GET /health` | A route whose condition is an exact path match, answered by the gateway itself. The simulator predicts the seed health route: 200 with no token check. | none |
-| LX2 | `GET /no-such-route` | What a request that no route claims gets back. The simulator predicts a bare 404 with an empty body; the real gateway decides the body. | none |
-| LX3 | `GET /mcp/x` | The 401 and its WWW-Authenticate challenge from a route behind a resource-server filter. The challenge from the real gateway is linted by the same rules as the simulated one. | none |
+| LX2 | `GET /no-such-route` | What a request that no route claims gets back. The simulator predicts a bare 404 with an empty body; the real gateway decides the body. | 4 |
+| LX3 | `GET /mcp/x` | The 401 and its WWW-Authenticate challenge from a route behind a resource-server filter. The challenge from the real gateway is linted by the same rules as the simulated one. | 12 |
 | LX4 | `GET /x/../health` | Whether the gateway routes on the path as sent or after removing the dot-segments. The simulator keeps the raw path, so it predicts no route (404). A 200 would mean the real gateway normalised the path first. | 7 |
 | LX5 | `GET /%68ealth` | Whether the gateway decodes the path before matching a route condition. The simulator keeps the raw path, so it predicts no route (404). A 200 would mean the real gateway decoded it. | 7 |
 
