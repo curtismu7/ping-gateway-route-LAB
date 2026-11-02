@@ -1,0 +1,4 @@
+# Fake secrets on purpose: server/test/liveClient.test.js (commit cf7354c) tests the request masker with dummy strings
+# (hunter2hunter2, an alphabet token, a made-up JWT, a truncated private-key header). Fingerprints are commit:file:rule:line.
+cf7354c4605184e87fe9858ada7bf0d793b9e285:server/test/liveClient.test.js:private-key:198
+cf7354c4605184e87fe9858ada7bf0d793b9e285:server/test/liveClient.test.js:generic-api-key:198
