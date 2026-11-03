@@ -16,7 +16,7 @@ export function buildPack() {
     id: 'ping-gateway-route-lab',
     title: 'Ping Gateway Route LAB (simulated)',
     version,
-    demo: { id: 'ping-gateway-route-lab', name: 'Ping Gateway Route LAB (simulated)', catalog: 'A19', baseUrl: 'http://localhost:5050', doctor: '/api/health', tags: ['pinggateway', 'ig', 'route-condition', 'www-authenticate', 'rfc9728', 'rfc7662', 'simulated', 'mock'] },
+    demo: { id: 'ping-gateway-route-lab', name: 'Ping Gateway Route LAB (simulated)', catalog: 'A19', baseUrl: 'http://localhost:5050', doctor: '/api/health', tags: ['pinggateway', 'ig', 'route-condition', 'www-authenticate', 'rfc9728', 'rfc7662', 'simulated', 'mock', 'live'] },
     glossary: [
       { id: 'simulated-evaluator', term: 'Simulated evaluator', definition: 'This lab reads route conditions with its own small interpreter. It is not PingGateway, shares no code with it, and cannot show what only a real gateway shows: its real parse errors, route reload and handler chain.' },
       { id: 'route-condition', term: 'Route condition', definition: 'The expression on a route that decides whether a request belongs to it, written as ${ ... }. The lab covers the part real routes use: find(), matches(), contains(), ==, !=, and, or, not, empty and request.uri, request.method, request.headers and request.queryParams.' },
@@ -27,6 +27,8 @@ export function buildPack() {
       { id: 'resource-metadata', term: 'resource_metadata', definition: 'A param in the 401 challenge that points a client at the protected-resource metadata document (RFC 9728), which names the authorization server to use.' },
       { id: 'insufficient-scope', term: 'insufficient_scope', definition: 'The token is valid but too narrow. The answer is 403 with the scope the client should ask for, not 401.' },
       { id: 'introspection', term: 'Token introspection', definition: 'The resource server asks the authorization server whether a token is active and what it carries (scope, aud, exp, client_id). An inactive token gets just {"active": false}.' },
+      { id: 'live-mode', term: 'Live mode', definition: 'Opt-in. The Request simulator can send the request you composed to ONE gateway on this machine and set its real answer (status, a short list of safe headers, a bounded body preview) beside the simulator\'s prediction. The prediction, and every other tab, is still simulated. The seed routes are a scrubbed copy of one deployment, so a disagreement can mean the route table differs from your gateway.', aliases: ['real gateway', 'live check'] },
+      { id: 'live-experiment', term: 'Live experiment', definition: 'An unauthenticated GET that needs no change to the gateway, with the simulator\'s prediction beside the real answer. Five ship with the lab (health, no route, a protected route, dot-segments, a percent-encoded letter). Experiments that change a gateway stay owner-run instructions.' },
       { id: 'virtual-clock', term: 'Virtual clock', definition: 'The lab moves its own clock to expire tokens, so nothing sleeps and a run is repeatable.' },
     ],
     sources: [
@@ -53,8 +55,9 @@ export function buildPack() {
       tryCard('S15', 'try-hostile', 'A hostile condition'),
       tryCard('S16', 'try-redos', 'A catastrophic regex'),
       tryCard('S17', 'try-as-down', 'The introspection endpoint is down'),
-      { id: 'concept-simulated', label: 'What is simulated', description: 'What this lab can and cannot show about real PingGateway.', group: 'concept', action: { type: 'route', href: '/#concept-simulated' }, terms: ['simulated-evaluator', 'route-condition', 'route-order'] },
+      { id: 'concept-simulated', label: 'What is simulated', description: 'What this lab can and cannot show about real PingGateway.', group: 'concept', action: { type: 'route', href: '/#concept-simulated' }, terms: ['simulated-evaluator', 'route-condition', 'route-order', 'live-mode'] },
       { id: 'concept-challenge', label: 'Reading a 401 challenge', description: 'Scheme, params, resource_metadata and the 401 versus 403 contract.', group: 'concept', action: { type: 'route', href: '/#concept-challenge' }, terms: ['www-authenticate', 'empty-first-param', 'resource-metadata', 'insufficient-scope'] },
+      { id: 'try-live', label: 'Live: the real answer beside the prediction', description: 'With Live on, send one of the five experiments to your own local gateway and compare status, challenge and body with what the simulator predicted. Off by default; the page says why when it is off.', group: 'try-it', action: { type: 'route', href: '/#/simulator' }, terms: ['live-mode', 'live-experiment'] },
       { id: 'ref-doctor', label: 'Doctor and health', description: 'Preflight checks and the demo-health/1 endpoint.', group: 'setup', action: { type: 'route', href: '/api/health' } },
     ],
     stories: scenarios.map((s) => ({ id: s.id, title: s.title, say: s.takeaway })),

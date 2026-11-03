@@ -35,6 +35,7 @@ test('content pack validation rejects a broken pack', () => {
 
 test('shelf entry matches the demo: id, catalog id, Tester kind, port, health path, loopback url, portable composeFile', () => {
   const [d] = JSON.parse(read('docs/shelf-entry.json')).demos;
+  assert.ok(d.name.length <= 300 && d.description.length > 0 && d.description.length <= 300, 'the shelf refuses to start on a description over 300 characters');
   assert.equal(d.id, 'ping-gateway-route-lab');
   assert.equal(d.catalogId, 'A19', 'carried over from the old repo; a placeholder until the owner confirms the catalog row');
   assert.equal(d.kind, 'Tester');
@@ -65,7 +66,8 @@ test('README is true: default port, commands exist, endpoints are real, the labe
     const route = m[1].replace(/^\/api/, '');
     assert.ok(app.includes(`'${route}`), `README documents ${m[1]} but app.js has no ${route}`);
   }
-  for (const p of new Set([...readme.matchAll(/localhost:(\d{4,5})/g)].map((m) => Number(m[1])))) assert.equal(portProblem(p), null, String(p));
+  // the lab's own ports (http://localhost:N); an https://localhost:N in the README is the example gateway for Live, not this app
+  for (const p of new Set([...readme.matchAll(/http:\/\/localhost:(\d{4,5})/g)].map((m) => Number(m[1])))) assert.equal(portProblem(p), null, String(p));
 });
 
 test('README follows the README standard: title ends in LAB, plain Tier, Repo and Catalog lines, the 12 sections of the standard in order, the port text, no internal names', () => {
@@ -107,7 +109,9 @@ test('every lint rule that is not observed says UNVERIFIED about clients; the sa
 test('hygiene: every host in every tracked text file is reserved, every key is mock, no tenant-looking ids, no mermaid', () => {
   for (const f of tracked().filter((x) => !/\.(png|ico|woff2?)$/.test(x) && !x.startsWith('node_modules/'))) {
     const text = read(f);
-    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|0\.0\.0\.0|192\.0\.2\.\d+|localhost.*)$/.test(h) && !/[${]/.test(h)), [], `${f}: real host`);
+    // The Live test files hold IPv4 literals as test vectors for the loopback judgement (private, public and carried-in-IPv6 forms); names are still checked.
+    const vectorFile = f === 'server/test/safety.test.js' || /^server\/test\/live.*\.test\.js$/.test(f);
+    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|0\.0\.0\.0|192\.0\.2\.\d+|localhost.*|\[[0-9a-f:.]+\])$/.test(h) && !/[${]/.test(h) && !(vectorFile && /^(0x)?[0-9a-f]+(\.(0x)?[0-9a-f]+)*$/i.test(h))), [], `${f}: real host`);
     if (f !== 'server/test/safety.test.js') assert.deepEqual(scanKeys(text), [], `${f}: non-mock key`);
     assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(text), `${f}: uuid-shaped id (tenant or client id?)`);
     if (f !== 'scripts/repo.test.mjs') assert.ok(!/mermaid/i.test(text), `${f}: mermaid`);
@@ -160,16 +164,22 @@ test('the forbidden-strings list is never read or embedded by the repo', () => {
 });
 
 test('every mutation names a real file, applies exactly once, and the key behaviours are all pinned', () => {
-  for (const [label, file, from] of MUTATIONS) {
+  assert.ok(MUTATIONS.length >= 80, `${MUTATIONS.length} mutations`);
+  for (const [label, file, from, , only] of MUTATIONS) {
+    for (const t of only || []) assert.ok(fs.existsSync(path.join(ROOT, 'server/test', t)), `${label}: ${t}`);
     const p = path.join(ROOT, 'server/src', file);
     assert.ok(fs.existsSync(p), `${label}: ${file}`);
     assert.equal(fs.readFileSync(p, 'utf8').split(from).length - 1, 1, `${label}: pattern must occur once`);
   }
-  for (const k of ['trap:', 'regex: nested', 'regex: quantified alternation', 'el: nesting', 'el: and/or', 'linter: empty first param', 'as: a token is still active at exp', 'handler: audience', 'handler: scope', 'handler: insufficient scope', 'routes: not sorted', 'routes: the LAST match', 'safety: Host', 'netguard: fetch', 'netguard: udp connect', 'config: asking for live', 'diagrams: any name', 'settings: another']) assert.ok(MUTATIONS.some(([l]) => l.includes(k)), `no mutation pins ${k}`);
+  for (const k of ['trap:', 'regex: nested', 'regex: quantified alternation', 'el: nesting', 'el: and/or', 'linter: empty first param', 'as: a token is still active at exp', 'handler: audience', 'handler: scope', 'handler: insufficient scope', 'routes: not sorted', 'routes: the LAST match', 'safety: Host', 'netguard: fetch', 'netguard: udp connect', 'config: asking for live', 'diagrams: any name', 'settings: another', 'live: any flag', 'live: the bind rule', 'live: rate limit', 'live: one-at-a-time', 'app: the Live endpoint needs no confirm', 'target: userinfo', 'target: 0.0.0.0', 'target: resolved addresses', 'client: a cookie', 'client: any method', 'client: an absolute URL', 'client: Set-Cookie', 'client: the TLS exception is global', 'client: the response read is unbounded', 'client: the connected peer', 'client: no netguard permit', 'client: a real token is echoed', 'sanitize: JWTs', 'sanitize: the text is cut before', 'netguard: a permit allows any port', 'netguard: the permit stays open']) assert.ok(MUTATIONS.some(([l]) => l.includes(k)), `no mutation pins ${k}`);
 });
 
-test('no crypto key generation anywhere (generateKeyPairSync aborts under GC on Node 20 here); no eval, Function or vm in the server', () => {
-  for (const f of tracked().filter((x) => /\.(m?js)$/.test(x) && x !== 'scripts/repo.test.mjs')) assert.ok(!/generateKeyPair/.test(read(f)), f);
+test('no EC key generation anywhere (generateKeyPairSync of curves aborts under GC on Node 20 here); the one RSA key is in the fake gateway test helper; no eval, Function or vm in the server', () => {
+  for (const f of tracked().filter((x) => /\.(m?js)$/.test(x) && x !== 'scripts/repo.test.mjs')) {
+    const t = read(f);
+    if (f === 'server/test/fakeGateway.js') { assert.equal((t.match(/generateKeyPair/g) || []).length, 1); assert.match(t, /generateKeyPairSync\('rsa'/); } else assert.ok(!/generateKeyPair/.test(t), f);
+  }
+  assert.ok(!tracked().some((f) => /\.(pem|key|crt|cer|p12|pfx)$/.test(f)), 'no key or certificate file is committed');
   for (const f of tracked().filter((x) => x.startsWith('server/src/'))) {
     const code = read(f).split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
     assert.ok(!/\beval\s*\(|new Function\s*\(|node:vm|require\('vm'\)/.test(code), `${f}: eval, Function or vm`);
@@ -189,14 +199,18 @@ test('web is the real UI (not a placeholder); package workspaces are server and 
   assert.ok(main.indexOf('standalone-ui.css') > 0 && main.indexOf('standalone-ui.css') < main.indexOf('app.css'));
 });
 
-test('every page has the Mock | Live toggle, Live is refused, and presenter mode is on P and Esc', () => {
+test('every page has the Mock | Live toggle, Live switches on only when the server says it is available, and presenter mode is on P and Esc', () => {
   const app = read('web/src/App.jsx');
   assert.match(app, /data-testid="mode-mock"/);
   assert.match(app, /data-testid="mode-live"/);
   assert.equal((app.match(/<ModeToggle /g) || []).length, 2, 'the toggle is in the loading/error header and in the full header');
   assert.match(app, /e\.key === "p"/);
   assert.match(app, /e\.key === "Escape"/);
-  assert.ok(!/setMode\(["']live["']\)|aria-pressed=\{[^}]*live/.test(app), 'nothing turns Live on');
+  assert.equal((app.match(/setMode\("live"\)/g) || []).length, 2, 'Live is set in two places only: the toggle and the opening mode');
+  assert.match(app, /if \(live\?\.available\) \{ setMode\("live"\)/, 'the toggle turns Live on only when the server says it is available');
+  assert.match(app, /i\.mode === "live" && i\.modes\?\.live\?\.available/, 'the opening mode is Live only when the server says so');
+  assert.match(app, /data-state="live"/);
+  assert.match(app, /data-state="mock"/);
 });
 
 test('shelf entry compose file points at this repo and exists; run.sh builds the UI before starting', () => {
@@ -207,12 +221,17 @@ test('shelf entry compose file points at this repo and exists; run.sh builds the
   assert.match(read('scripts/run.sh'), /npm run build/);
 });
 
-test('live-checks is instructions only: no script or source runs it, and it says so and marks writes owner-only', () => {
+test('live-checks: lists every automated experiment and its recorded result, keeps the writes as owner-only instructions, and no code reads or runs the file', async () => {
   const doc = read('docs/live-checks.md');
-  assert.match(doc, /instructions only/i);
-  assert.match(doc, /owner-only/i);
+  const { LIVE_EXPERIMENTS } = await import('../server/src/liveExperiments.js');
+  for (const e of LIVE_EXPERIMENTS) assert.ok(doc.includes(`| ${e.id} `), `${e.id} is in live-checks.md`);
+  assert.match(doc, /Owner-only writes \(instructions, not automated\)/);
+  assert.match(doc, /owner-only|change a gateway you control/i);
   assert.match(doc, /UNVERIFIED/);
-  for (const f of tracked().filter((x) => /\.(m?js|sh|jsx)$/.test(x) && x !== 'scripts/repo.test.mjs')) assert.ok(!read(f).includes('live-checks'), `${f} references live-checks`);
+  assert.match(doc, /Recorded result: 2026-11-01/);
+  assert.match(doc, /\| LX5 `\/%68ealth` \|[^\n]*\*\*NO\*\*/, 'the real disagreement is recorded as a disagreement');
+  assert.ok(!/https?:\/\/(?!localhost|127\.|<host>|www\.rfc)[a-z0-9.-]+\.(com|net|io|demo|org)\b/i.test(doc), 'no real host in the recorded results');
+  for (const f of tracked().filter((x) => /\.(m?js|sh|jsx)$/.test(x) && x !== 'scripts/repo.test.mjs')) assert.ok(!/(readFileSync|readFile|import)[^\n]*live-checks/.test(read(f)), `${f} reads live-checks`);
 });
 
 test('talk track covers every story id (the drift test against the generator is server/test/talktrack.test.js)', () => {
@@ -231,8 +250,19 @@ test('the vendored shared stylesheet is the canonical one, byte for byte (when t
   assert.ok(fs.readFileSync(canon).equals(fs.readFileSync(path.join(ROOT, 'web/src/styles/standalone-ui.css'))), 'run: cp the canonical file over web/src/styles/standalone-ui.css');
 });
 
-test('no outbound call exists in the source: no http(s) client use beyond the loopback-only reset script', () => {
-  for (const f of tracked().filter((x) => x.startsWith('server/src/') && x !== 'server/src/netguard.js')) assert.ok(!/\bfetch\(|http\.request|https\.request|net\.connect|new WebSocket/.test(read(f)), `${f}: outbound call`);
+test('no outbound call exists in the source except in the one place: liveClient.js is the only HTTP client; fetch and net.connect appear only in the guards\' own self-tests', () => {
+  const src = tracked().filter((x) => x.startsWith('server/src/'));
+  for (const f of src.filter((x) => !['server/src/netguard.js', 'server/src/liveClient.js', 'server/src/live.js'].includes(x))) assert.ok(!/\bfetch\(|http\.request|https\.request|net\.connect|new WebSocket|http\.get|https\.get/.test(read(f)), `${f}: outbound call`);
+  const client = read('server/src/liveClient.js');
+  assert.match(client, /https\.request|http\)\.request/);
+  assert.ok(!/\bfetch\(|net\.connect|new WebSocket|NODE_TLS_REJECT_UNAUTHORIZED|globalAgent|setGlobalDispatcher/.test(client.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')), 'liveClient.js: only a scoped request');
+  const live = read('server/src/live.js');
+  const before = live.slice(0, live.indexOf('export async function liveGuardsSelfTest'));
+  assert.ok(!/\bfetch\(|net\.connect|https?\.request/.test(before), 'live.js: a socket or fetch only inside the self-test, which runs inside a permit and is refused');
+  assert.ok(live.slice(live.indexOf('export async function liveGuardsSelfTest')).includes('withPermit('), 'the self-test attempts run inside a permit');
+  // the TLS exception is set exactly once, on one request object
+  assert.equal((client.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n').match(/rejectUnauthorized/g) || []).length, 1);
+  for (const f of tracked().filter((x) => /\.(m?js|sh)$/.test(x) && x !== 'scripts/repo.test.mjs' && !/\.test\./.test(x))) assert.ok(!/NODE_TLS_REJECT_UNAUTHORIZED/.test(read(f)) || /mutation-check/.test(f), `${f}: global TLS switch`);
 });
 
 test('versions agree: package.json files, content pack and the newest CHANGELOG heading', async () => {
@@ -246,4 +276,20 @@ test('versions agree: package.json files, content pack and the newest CHANGELOG 
 test('reset with no server running says so instead of "fetch failed"', async () => {
   const { reset } = await import('./reset.mjs');
   await assert.rejects(() => reset('http://127.0.0.1:5097'), /no lab server answering.*start it first/);
+});
+
+test('Live is documented where it is configured: .env.example, README settings table and the shared-settings allow-list agree', async () => {
+  const { SETTINGS_KEYS } = await import('../server/src/settings.js');
+  assert.deepEqual(SETTINGS_KEYS, ['ROUTE_LAB_MODE', 'ROUTE_LAB_LIVE', 'ROUTE_LAB_LIVE_TARGET']);
+  for (const k of SETTINGS_KEYS) { assert.ok(read('README.md').includes(`\`${k}\``), `README: ${k}`); assert.ok(read('.env.example').includes(k), `.env.example: ${k}`); }
+  assert.match(read('.env.example'), /^# ROUTE_LAB_LIVE=1 /m, 'the example leaves Live commented out (off by default)');
+  assert.ok(!/^ROUTE_LAB_LIVE/m.test(read('.env.example')), 'Live is never on in a shipped file');
+  assert.match(read('README.md'), /host-run feature/i);
+});
+
+test('the container keeps Live off: compose asserts the loopback publish with the marker, passes no Live key and mounts no settings file; the Dockerfile sets no marker or Live key', () => {
+  const compose = read('docker-compose.yml'); const docker = read('Dockerfile');
+  assert.match(compose, /LAB_DOCKER_LOOPBACK_PUBLISH: "1"/);
+  assert.ok(!/ROUTE_LAB_LIVE|STANDALONE_ENV|volumes:/.test(compose), 'no Live key, settings path or mount in compose');
+  assert.ok(!/ROUTE_LAB_LIVE|LAB_DOCKER_LOOPBACK_PUBLISH|STANDALONE_ENV/.test(docker));
 });

@@ -1,9 +1,9 @@
 {
   "name": "ping-gateway-route-lab",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "Interactive lab for PingGateway route behaviour with no real PingGateway: a SIMULATED route-condition evaluator, a WWW-Authenticate / RFC 9728 linter, an RFC 7662 introspection stub and a request-to-route table. Mock mode only (Live is refused for now). Not real PingGateway.",
+  "description": "Interactive lab for PingGateway route behaviour with no real PingGateway: a SIMULATED route-condition evaluator, a WWW-Authenticate / RFC 9728 linter, an RFC 7662 introspection stub and a request-to-route table. Mock by default; an opt-in Live mode sends one request to your own loopback gateway and shows its real answer beside the simulator's prediction. Not real PingGateway.",
   "license": "MIT",
   "workspaces": [
     "server",

@@ -8,7 +8,8 @@ import { runAll, seedDefinitions } from './runner.js';
 import { loadRouteDir } from './routes.js';
 import { run, Bag } from './el.js';
 import { RULES, lintWwwAuthenticate } from './wwwauth.js';
-import { requestedMode } from './config.js';
+import { modeInfo, requestedMode } from './config.js';
+import { liveGuardsSelfTest, liveStatus } from './live.js';
 import { settingsPath } from './settings.js';
 import { DIAGRAM_NAMES, loadDiagram } from './diagramData.js';
 
@@ -18,9 +19,13 @@ export async function runChecks({ env = process.env } = {}) {
 
   const major = Number(process.versions.node.split('.')[0]);
   add('node', major >= 26 ? 'pass' : 'fail', `v${process.versions.node} (need >= 26)`);
-  add('simulated', 'pass', 'this is a simulated evaluator, not real PingGateway; no real-IG lane in this build');
-  try { const m = requestedMode(env); add('mode', 'pass', m === 'live' ? 'live was asked for and is refused for now: the page opens in Mock (there is no live lane)' : 'mock is the opening mode (live is refused for now: there is no live lane)'); }
-  catch (e) { add('mode', 'fail', e.message); }
+  add('simulated', 'pass', 'this is a simulated evaluator, not real PingGateway; Live (opt-in) sends one request to your own loopback gateway and shows its answer beside the simulator\'s');
+  const live = liveStatus(env);
+  try {
+    const m = requestedMode(env); const eff = modeInfo(env, live).mode;
+    add('mode', 'pass', m === 'live' && eff !== 'live' ? `live was asked for and is refused, so the page opens in Mock: ${live.reason}` : `${eff} is the opening mode`);
+  } catch (e) { add('mode', 'fail', e.message); }
+  add('live', live.enabled || live.code === 'off' ? 'pass' : 'info', live.enabled ? `Live is on for one loopback origin, ${live.target.origin} (the doctor does not contact it)` : live.code === 'off' ? 'Live is off (the default): this process makes no network call' : `Live is refused: ${live.reason}`);
 
   try { add('bind', 'pass', `${assertBindAllowed(bindHost(env), env)}${env.LAB_BIND ? ' (LAB_BIND opt-in)' : ' (loopback)'}`); }
   catch (e) { add('bind', 'fail', e.message); }
@@ -64,13 +69,16 @@ export async function runChecks({ env = process.env } = {}) {
   const ng = await netguardSelfTest();
   add('netguard', ng.ok ? 'pass' : 'fail', ng.ok ? `blocked fetch, socket, socket-by-IP, dns lookup, dns resolve, udp send and udp connect to a non-loopback host (${ng.blocked}/7)` : ng.detail);
 
+  const lg = await liveGuardsSelfTest();
+  add('live-guards', lg.ok ? 'pass' : 'fail', lg.detail);
+
   try {
     const results = VERTICALS.flatMap((v) => runAll(v.id));
     const failed = results.filter((r) => !r.pass);
     add('scenarios', failed.length ? 'fail' : 'pass', failed.length ? `scenarios not behaving as written: ${failed.map((f) => f.id).join(', ')}` : `${results.length} scenario runs across ${VERTICALS.length} verticals all behave as written`);
   } catch (e) { add('scenarios', 'fail', e.message); }
 
-  add('tenant', 'pass', 'mock only: no tenant, no gateway, no credentials, no outbound network');
+  add('tenant', 'pass', 'no tenant and no credentials held; Mock makes no outbound call, and Live (opt-in) can reach one loopback origin only');
   return checks;
 }
 

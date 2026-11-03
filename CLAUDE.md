@@ -1,6 +1,6 @@
 # ping-gateway-route-LAB (Tester tier, catalog A19 carried over: a placeholder until the owner confirms it)
 
-A simulated PingGateway route evaluator: route conditions, a route table with shadowing, a WWW-Authenticate linter and a mock introspection server. It is not real PingGateway and never claims to be. Mock mode only; Live is refused for now (no live lane).
+A simulated PingGateway route evaluator: route conditions, a route table with shadowing, a WWW-Authenticate linter and a mock introspection server. It is not real PingGateway and never claims to be. Mock by default (zero network). Opt-in Live mode sends one request to your own loopback gateway and shows its real answer beside the simulator's prediction.
 
 ## Run and test
 - `./scripts/run.sh` installs, builds, runs the doctor and starts the app on http://localhost:5050 (UI dev server on 5051). `npm run doctor`, `npm run reset`. Docker: `HOST_PORT=5050 docker compose up --build -d` (127.0.0.1 only).
@@ -10,11 +10,12 @@ A simulated PingGateway route evaluator: route conditions, a route table with sh
 
 ## Rules that bite
 - Every output says what is simulated. Anything about real PingGateway behaviour needs a source, or is labelled UNVERIFIED in `docs/safety.md`.
-- Mock | Live switch in the header of EVERY page (also while loading or when the server is down). Live is refused with the server's message; nothing may turn it on. Banner and mode label say Mock. Presenter mode (P / Esc) keeps the banner.
+- Mock | Live switch in the header of EVERY page (also while loading or when the server is down). Banner and mode label say which mode. Presenter mode (P / Esc) keeps the banner. Mock is the default and makes zero network calls (a test pins it).
+- Live (`live.js`, `liveTarget.js`, `liveClient.js`, `liveSanitize.js`, netguard `withPermit`): OFF unless `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` (shared settings file) name ONE loopback origin; no override; refused on a non-loopback bind outside the loopback-published container; host-run only in practice (the container cannot reach the host's loopback). `liveClient.js` is the only outbound HTTP client in the repo. Guards: confirm gate, resolve + re-check every send, peer check before any write, netguard permit for one address and port, TLS exception for that one request only, method/path/header allow-lists, no cookie, no body, no redirect, 5 s / 16 KB / 1024 chars, 10 per 30 s, one at a time, response headers allow-listed, secrets never echoed (mask BEFORE cut). Tests use a local fake HTTPS gateway (`server/test/fakeGateway.js`) and NEVER a real one. Do not send more than a handful of requests to a real gateway, and never put a real host in the repo.
 - The diagram is `diagram-studio/1` data in `server/diagrams/`, loaded by name (`GET /api/diagram`) and checked with `diagramStudioValidate.js` (a copy of the studio's validator: re-copy to update, never import). No hand-built nodes or edges in the web code. Reset restores the boxes.
-- Settings: only the shared `~/Development/.env` (or `STANDALONE_ENV`), parsed with `util.parseEnv`, one key `ROUTE_LAB_MODE`. No per-app `.env`, never a bare `MODE`, no k8s/SE code (deferred by the owner, 2026-10-31).
+- Settings: only the shared `~/Development/.env` (or `STANDALONE_ENV`), parsed with `util.parseEnv`, three keys `ROUTE_LAB_MODE`, `ROUTE_LAB_LIVE`, `ROUTE_LAB_LIVE_TARGET`. No per-app `.env`, never a bare `MODE`, no k8s/SE code (deferred by the owner, 2026-10-31).
 - UI: `web/src/styles/standalone-ui.css` is vendored byte-for-byte from `AI-DEMO-Standalone/shared/` and loaded first; `app.css` uses tokens only (no colour literals, no `prefers-color-scheme`, no `!important`, breakpoints 600/900, no restyling of the shared controls).
-- Netguard refuses every non-loopback socket, DNS lookup, fetch, UDP send and UDP connect, with a self-test (7 attempts) and a test that asserts zero attempts.
+- Netguard refuses every non-loopback socket, DNS lookup, fetch, UDP send and UDP connect, with a self-test (7 attempts) and a test that asserts zero attempts; `withPermit` narrows it to one address and port for a Live send and is released after.
 - Ports 5050-5099 only, never 8080, 5173, 3000 or 4000. Only `.example` / `.invalid` hosts. The family history scan must print 0 and gitleaks must be clean; never print or embed the forbidden list.
 - Never `crypto.generateKeyPairSync('ec')` or async EC `generateKeyPair` (SIGABRT on Node 20 CI). Use `createECDH` + `createPrivateKey` or fixtures. This lab has no key material at all.
 - Loopback-only bind, Host check, same-origin writes; Docker publishes `127.0.0.1:` only.

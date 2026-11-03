@@ -2,11 +2,23 @@
   "title": "Talk track",
   "opening": [
     "Open with the label: this is a simulated evaluator, not real PingGateway. Say what that buys you (the mechanics, instantly, with nothing installed) and what it does not (IG's own parse errors, route reload, handler chain).",
-    "The page is in Mock mode. Live is refused for now: there is no live lane, so nothing here reaches a real gateway. Press Live once to show the page saying so.",
+    "The page opens in Mock. Press Live once: if Live is off (the default) the page says why and stays in Mock, which is itself a safe thing to show. If Live is on, the banner and the mode chip change and the Request simulator tab gains a Send to the real gateway button.",
     "Presenter mode (P, or the Present button) hides the explanatory text and keeps the banner. Esc leaves it. Reset lab puts the routes, tokens, clock and diagram boxes back."
   ],
   "storiesIntro": "One line per story. Each is generated from the story data, filled with the cast of the {{vertical}} pack, so it cannot drift from what the lab runs.",
   "closing": [
     "Never say whether PingGateway runs without a licence. It is UNVERIFIED."
-  ]
+  ],
+  "live": {
+    "title": "Live mode (opt-in, your own gateway)",
+    "intro": [
+      "Live sends the request you composed to one local gateway and sets its real answer beside the simulator's prediction: status, a short list of safe response headers, a bounded body preview and whether the two agree. Only the Request simulator tab does this; every prediction and every other tab is still simulated.",
+      "Say what Live is not: it does not make the simulator real. The seed routes are a scrubbed copy of one deployment, so a disagreement is as likely to mean the route table differs from your gateway as that the simulator is wrong. Edit the routes to mirror your gateway, then compare again.",
+      "Nothing is sent without the confirm box. No cookie and no body ever go, a token you type goes to the gateway and is never shown back, and the target is fixed in the settings file and must be on this machine."
+    ],
+    "experimentsIntro": "These experiments are unauthenticated GET requests and change nothing on the gateway. Use the Fill the request button on the Request simulator tab, then send.",
+    "outro": [
+      "Experiments that change the gateway (a new route, a stopped introspection endpoint) are owner-run instructions in docs/live-checks.md, not buttons."
+    ]
+  }
 }

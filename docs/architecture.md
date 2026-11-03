@@ -1,6 +1,6 @@
 # Architecture
 
-Everything is in one process. Nothing leaves the machine.
+Everything is in one process. In Mock mode (the default) nothing leaves the machine; the opt-in Live mode can reach one loopback origin and nothing else.
 
 ```
  browser ──same origin──▶ Express (server/src/app.js)
@@ -13,14 +13,19 @@ Everything is in one process. Nothing leaves the machine.
                              ├── runner.js ──── scenario runner (stories as data), trace envelope
                              ├── doctor.js / health.js   preflight checks, GET /api/health (demo-health/1)
                              ├── diagramData.js  loads the diagram-studio/1 data in server/diagrams by name (validator copy: diagramStudioValidate.js)
-                             ├── config.js / settings.js  ROUTE_LAB_MODE from the shared ~/Development/.env; Live is refused
+                             ├── config.js / settings.js  ROUTE_LAB_MODE, ROUTE_LAB_LIVE, ROUTE_LAB_LIVE_TARGET from the shared ~/Development/.env
+                             ├── live.js ────── when Live is allowed, the rate limit and lock, prediction + comparison, the doctor self-test
+                             │     ├ liveTarget.js    target parsing, loopback judgement of addresses, per-send resolution
+                             │     ├ liveClient.js    THE only outbound HTTP client: allow-lists, one verified address, scoped TLS exception, bounds
+                             │     └ liveSanitize.js  mask (heuristic) before cut, invisible characters, secrets
                              ├── talkTrack.js ─ docs/talk-track.md generated from the story data
-                             └── netguard.js ── refuses every non-loopback socket, DNS, fetch, UDP send and UDP connect
+                             └── netguard.js ── refuses every non-loopback socket, DNS, fetch, UDP send and UDP connect;
+                                                  withPermit() narrows it to ONE address and port for the duration of a Live send
 ```
 
 ## Web UI
 
-`web/` is a React + Vite app served by the same Express process from `web/dist`. It talks only to its own origin under `/api`. The header of every page (also while loading, or when the server is down) carries the Mock | Live switch; Live is refused with the reason from `GET /api/info`. P and Esc toggle presenter mode. The diagram boxes, arrows and the built-in walk come from the diagram-studio/1 file served by `GET /api/diagram` (`lib/diagram.js` only turns it into what React Flow draws). State that spans tabs (the request builder, issued mock tokens, the story on screen, diagram box positions) lives in `App.jsx`; tabs are `web/src/tabs/*`. Every string from a user or the server is rendered as a React text node through `Inert` (control and bidi characters become visible `[U+XXXX]` chips). The banner is rendered by the shell before anything else and is never hidden by presenter mode, which only hides elements marked `data-admin-only`. Web tests run the real Express app on a loopback port, so they exercise the real evaluator, linter and mock AS.
+`web/` is a React + Vite app served by the same Express process from `web/dist`. It talks only to its own origin under `/api`. The header of every page (also while loading, or when the server is down) carries the Mock | Live switch; while Live is off, pressing it shows the reason from `GET /api/info`; while it is on, pressing it changes the banner and the mode label and the Request simulator tab gains the send button and the result beside the prediction (`tabs/LiveCompare.jsx`). P and Esc toggle presenter mode. The diagram boxes, arrows and the built-in walk come from the diagram-studio/1 file served by `GET /api/diagram` (`lib/diagram.js` only turns it into what React Flow draws). State that spans tabs (the request builder, issued mock tokens, the story on screen, diagram box positions) lives in `App.jsx`; tabs are `web/src/tabs/*`. Every string from a user or the server is rendered as a React text node through `Inert` (control and bidi characters become visible `[U+XXXX]` chips). The banner is rendered by the shell before anything else and is never hidden by presenter mode, which only hides elements marked `data-admin-only`. Web tests run the real Express app on a loopback port, so they exercise the real evaluator, linter and mock AS.
 
 ## Data
 
@@ -30,7 +35,8 @@ Everything is in one process. Nothing leaves the machine.
 | `server/data/wwwauth-rules.json` | Lint rules as data: id, severity, explanation, fix, which client breaks, basis |
 | `server/data/scenarios.json` | 17 stories: steps with expectations and `{{cast}}` tokens |
 | `server/data/verticals.json` | The cast packs (travel, banking, retail): hosts, scopes, audience, client name |
-| `server/data/talk-track.json` | The opening and closing lines of `docs/talk-track.md` (the story lines come from `scenarios.json`) |
+| `server/data/talk-track.json` | The opening, Live section text and closing lines of `docs/talk-track.md` (the story lines come from `scenarios.json`, the Live table from `live-experiments.json`) |
+| `server/data/live-experiments.json` | The five Live experiments: unauthenticated GETs that change nothing on the gateway |
 | `server/diagrams/request-path.json` | The request-path diagram, `diagram-studio/1`: five boxes, four arrows, the built-in walk |
 
 ## A request through the lab
@@ -40,6 +46,10 @@ Everything is in one process. Nothing leaves the machine.
 3. `handleRequest` then, if the route has an `OAuth2ResourceServerFilter`, reads the Bearer token, asks the mock AS, and applies audience then scope. It builds the `WWW-Authenticate` the route's `lab.challengeStyle` says and lints its own output.
 
 A condition that cannot be parsed makes its route **not loaded** (the documented simulation of the `\.` trap): it is skipped and listed under `notLoaded`.
+
+## A Live send
+
+`POST /api/live/send` with `{ request, confirm: true }`: refused (403) unless `live.js` says Live is allowed; then `validateLiveRequest` (allow-lists), the rate limit and the one-at-a-time lock; the **prediction** is made first, with no network, by the same `handleRequest` the simulator tab uses; then `sendLive` resolves the target, opens a netguard permit for the one verified address and port, makes the request, and returns a sanitised answer; `compare` scores status and challenge presence (and the empty body of a predicted bare 404). A failure is a 502 with a fixed code and the prediction still shown.
 
 ## Route files
 
@@ -55,7 +65,7 @@ The clock is virtual. `advance` moves it; nothing sleeps. A run starts at a fixe
 
 ## API
 
-`GET /api/health`, `GET /api/info`, `GET /api/diagram`, `GET /api/catalog`, `GET /api/rules`, `GET/PUT /api/routes`, `PUT /api/routes/:name/condition`, `POST /api/condition`, `POST /api/match`, `POST /api/handle`, `POST /api/lint/www-authenticate`, `POST /api/lint/metadata`, `POST /api/as/issue`, `POST /api/as/revoke`, `POST /api/as/introspect` (JSON or form), `POST /api/as/fault`, `GET /api/clock`, `POST /api/clock/advance`, `POST /api/run`, `POST /api/run-all`, `POST /api/reset`, `GET /api/safety-scan`.
+`GET /api/health`, `GET /api/info`, `GET /api/live/experiments`, `POST /api/live/send`, `GET /api/diagram`, `GET /api/catalog`, `GET /api/rules`, `GET/PUT /api/routes`, `PUT /api/routes/:name/condition`, `POST /api/condition`, `POST /api/match`, `POST /api/handle`, `POST /api/lint/www-authenticate`, `POST /api/lint/metadata`, `POST /api/as/issue`, `POST /api/as/revoke`, `POST /api/as/introspect` (JSON or form), `POST /api/as/fault`, `GET /api/clock`, `POST /api/clock/advance`, `POST /api/run`, `POST /api/run-all`, `POST /api/reset`, `GET /api/safety-scan`.
 
 ## Ports
 
