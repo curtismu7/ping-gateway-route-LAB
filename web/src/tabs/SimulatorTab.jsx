@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { handleRequest, matchRequest } from "../lib/api.js";
+import React, { useEffect, useRef, useState } from "react";
+import { getLiveExperiments, handleRequest, matchRequest, sendLive } from "../lib/api.js";
+import { Experiments, LiveResult } from "./LiveCompare.jsx";
 import { buildRequest } from "../lib/request.js";
 import { fromHandle } from "../lib/session.js";
 import { Inert, pretty } from "../lib/Inert.jsx";
@@ -28,9 +29,16 @@ export function MatchTable({ entries, first }) {
 }
 
 export default function SimulatorTab({ app }) {
-  const { req, setReq, tokens, showSession, go, setLintSeed } = app;
+  const { req, setReq, tokens, showSession, go, setLintSeed, mode, liveTarget } = app;
+  const live = mode === "live";
   const [out, setOut] = useState(null);
   const [error, setError] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const [liveOut, setLiveOut] = useState(null);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [experiments, setExperiments] = useState([]);
+  const seq = useRef(0);
+  useEffect(() => { if (live) getLiveExperiments().then((d) => setExperiments(d.experiments)).catch(() => {}); else { setConfirm(false); setLiveOut(null); } }, [live]);
   const { request, problems } = buildRequest(req);
   const set = (k) => (e) => setReq({ ...req, [k]: e.target.value });
 
@@ -42,6 +50,17 @@ export default function SimulatorTab({ app }) {
     setOut({ mode, ...r.data });
     if (mode === "handle") showSession(fromHandle(r.data));
   };
+  // Live: one request to the configured gateway. The newest answer wins (a slow earlier one is dropped).
+  const sendReal = async () => {
+    const mine = ++seq.current; setError(""); setLiveOut(null);
+    if (problems.length) { setError(`Headers: ${problems.join("; ")}`); return; }
+    setLiveBusy(true);
+    try {
+      const r = await sendLive(request);
+      if (mine === seq.current) setLiveOut(r.ok ? r.data : { error: r.data.error || "live_failed", message: r.data.message || `HTTP ${r.status}`, predicted: r.data.predicted });
+    } catch (e) { if (mine === seq.current) setLiveOut({ error: "live_failed", message: e.message }); } finally { if (mine === seq.current) setLiveBusy(false); }
+  };
+  const pick = (e) => { setReq({ ...req, method: e.method, url: e.url, host: liveTarget ? new URL(liveTarget).host : "", headers: "", bearer: "" }); setLiveOut(null); };
   const challenge = out?.response?.headers?.["WWW-Authenticate"];
   const lintIt = () => { setLintSeed({ header: challenge, status: String(out.response.status) }); go("lint"); };
 
@@ -83,10 +102,25 @@ export default function SimulatorTab({ app }) {
             <button type="button" className="primary" onClick={() => send("handle")}>Send through handler</button>
           </div>
           {error && <p className="alert" role="alert" data-testid="sim-error"><Inert text={error} /></p>}
+          {live && (
+            <div className="live-box" data-testid="live-box">
+              <h4>Real gateway (Live)</h4>
+              <p className="small" data-admin-only>Sends this request to <strong><Inert text={liveTarget} /></strong> on this machine and sets its answer beside the simulator's prediction. No body and no cookie are sent. A token you type goes to the gateway and is never shown back. At most 10 sends per 30 seconds, one at a time.</p>
+              <label className="check"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} data-testid="live-confirm" /> I confirm: send this request to the real gateway</label>
+              <div className="actions"><button type="button" className="primary" disabled={!confirm || liveBusy} onClick={sendReal} data-testid="live-send">{liveBusy ? "Waiting for the gateway..." : "Send to the real gateway and compare"}</button></div>
+              <Experiments list={experiments} onPick={pick} />
+            </div>
+          )}
         </section>
         <section className="card" aria-labelledby="rs-h" aria-live="polite">
           <h3 id="rs-h">Result</h3>
-          {!out ? <p className="muted">Nothing sent yet.</p> : (
+          {live && (
+            <div className="live-result" data-testid="live-panel">
+              <h4>Real gateway answer</h4>
+              {liveOut ? <LiveResult out={liveOut} onLint={(header, status) => { setLintSeed({ header, status: String(status) }); go("lint"); }} /> : <p className="muted">{liveBusy ? "Waiting for the gateway..." : "Nothing sent to the real gateway yet."}</p>}
+            </div>
+          )}
+          {!out ? <p className="muted">Nothing simulated yet.</p> : (
             <>
               <p className={`verdict ${out.first ? "ok" : "deny"}`} data-testid="match-verdict">
                 {out.first ? <>Route chosen: <strong>{out.first}</strong></> : "No route matches: a bare 404 with no body."}

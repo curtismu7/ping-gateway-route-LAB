@@ -25,3 +25,6 @@ export const getClock = () => need(call("GET", "/api/clock"));
 export const advanceClock = (seconds) => call("POST", "/api/clock/advance", { seconds });
 export const resetServer = () => need(call("POST", "/api/reset", {}));
 export const runScenario = (scenario, vertical) => need(call("POST", "/api/run", { scenario, vertical }));
+export const getLiveExperiments = () => need(call("GET", "/api/live/experiments"));
+// Live: the server refuses unless Live is on; confirm:true is the page's confirm gate. Never throws on 4xx/5xx.
+export const sendLive = (request) => call("POST", "/api/live/send", { request, confirm: true });

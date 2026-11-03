@@ -54,7 +54,7 @@ test('GET /api/diagram serves the data by name; no name means the first; a bad n
   });
 });
 
-test('GET /api/info says the mode in effect is mock, and why Live is refused', async () => {
+test('GET /api/info says the mode in effect is mock, and why Live is off', async () => {
   await withServer(async (base) => {
     const r = await rawHttp(`${base}/api/info`);
     assert.equal(r.status, 200);
@@ -62,7 +62,7 @@ test('GET /api/info says the mode in effect is mock, and why Live is refused', a
     assert.equal(j.mode, 'mock');
     assert.equal(j.modes.mock.available, true);
     assert.equal(j.modes.live.available, false);
-    assert.match(j.modes.live.message, /Live mode is not available/);
+    assert.match(j.modes.live.message, /Live is off/);
     assert.match(j.modes.live.message, /stays in Mock/);
     assert.deepEqual(j.diagrams, DIAGRAM_NAMES);
   });

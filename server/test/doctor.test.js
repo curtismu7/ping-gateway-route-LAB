@@ -6,7 +6,7 @@ import { scanKeys } from '../src/safety.js';
 test('doctor passes on a clean default environment and names every check', async () => {
   const checks = await runChecks({ env: {} });
   assert.ok(allPassed(checks), JSON.stringify(checks.filter((c) => c.level === 'fail')));
-  assert.deepEqual(checks.map((c) => c.id), ['node', 'simulated', 'mode', 'bind', 'port-range', 'settings-file', 'routes', 'route-hosts', 'el', 'linter', 'story-hosts', 'story-keys', 'story-tokens', 'diagrams', 'netguard', 'scenarios', 'tenant']);
+  assert.deepEqual(checks.map((c) => c.id), ['node', 'simulated', 'mode', 'live', 'bind', 'port-range', 'settings-file', 'routes', 'route-hosts', 'el', 'linter', 'story-hosts', 'story-keys', 'story-tokens', 'diagrams', 'netguard', 'live-guards', 'scenarios', 'tenant']);
   assert.match(checks.find((c) => c.id === 'simulated').detail, /not real PingGateway/);
 });
 
@@ -23,11 +23,15 @@ test('doctor output carries no secret-looking value and no tenant-looking id', a
   assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(text));
 });
 
-test('doctor reports the opening mode: live is refused for now (still a pass), an unknown mode fails', async () => {
-  const live = (await runChecks({ env: { ROUTE_LAB_MODE: 'live' } })).find((c) => c.id === 'mode');
-  assert.equal(live.level, 'pass');
-  assert.match(live.detail, /refused for now/);
-  assert.equal((await runChecks({ env: { ROUTE_LAB_MODE: 'hosted' } })).find((c) => c.id === 'mode').level, 'fail');
+test('doctor reports the opening mode and the Live state: off by default, refused with a reason, or on for one origin; an unknown mode fails', async () => {
+  const find = async (env, id) => (await runChecks({ env })).find((c) => c.id === id);
+  const off = await find({}, 'live'); assert.equal(off.level, 'pass'); assert.match(off.detail, /Live is off/);
+  const asked = await find({ ROUTE_LAB_MODE: 'live' }, 'mode'); assert.equal(asked.level, 'pass'); assert.match(asked.detail, /refused, so the page opens in Mock/);
+  const bad = await find({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://example.com' }, 'live'); assert.equal(bad.level, 'info'); assert.match(bad.detail, /must be on this machine/); assert.ok(!bad.detail.includes('example.com'));
+  const on = await find({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' }, 'live'); assert.equal(on.level, 'pass'); assert.match(on.detail, /does not contact it/);
+  assert.equal((await find({ ROUTE_LAB_MODE: 'live', ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' }, 'mode')).detail, 'live is the opening mode');
+  assert.equal((await find({ ROUTE_LAB_MODE: 'hosted' }, 'mode')).level, 'fail');
+  const guards = await find({}, 'live-guards'); assert.equal(guards.level, 'pass');
 });
 
 test('doctor names the diagram check and the shared settings file check without printing a value', async () => {

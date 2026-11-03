@@ -52,3 +52,11 @@ test('the container is locked down: read-only fs, no capabilities, no new privil
   assert.match(compose, /cap_drop: \[ALL\]/);
   assert.match(compose, /no-new-privileges:true/);
 });
+
+test('the loopback-publish marker is only ever set next to a 127.0.0.1-only publish (Live is refused on a wider bind without it)', () => {
+  const compose = here('docker-compose.yml');
+  assert.match(compose, /LAB_DOCKER_LOOPBACK_PUBLISH: "1"/);
+  const ports = publishedPorts(compose);
+  assert.ok(ports.length > 0 && ports.every((p) => p.startsWith('127.0.0.1:')), 'the marker asserts this');
+  assert.ok(!/LAB_DOCKER_LOOPBACK_PUBLISH/.test(here('Dockerfile')), 'the Dockerfile cannot know how the port is published');
+});

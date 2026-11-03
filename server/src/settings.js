@@ -1,12 +1,12 @@
 // The one shared settings file (rulebook): ~/Development/.env, or the path in STANDALONE_ENV. Every standalone app reads it, so it
-// holds other apps' keys too. This lab takes ONLY the key listed below and ignores everything else: nothing else from the file
+// holds other apps' keys too. This lab takes ONLY the keys listed below and ignores everything else: nothing else from the file
 // ever enters the server's environment, and no value is printed. Read only; the lab never writes it.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parseEnv } from 'node:util';
 
-export const SETTINGS_KEYS = ['ROUTE_LAB_MODE'];
+export const SETTINGS_KEYS = ['ROUTE_LAB_MODE', 'ROUTE_LAB_LIVE', 'ROUTE_LAB_LIVE_TARGET'];
 export const settingsPath = (env = process.env) => env.STANDALONE_ENV || path.join(os.homedir(), 'Development', '.env');
 
 export function readSharedSettings(file) {

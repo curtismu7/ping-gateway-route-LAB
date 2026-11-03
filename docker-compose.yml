@@ -11,6 +11,9 @@ services:
     environment:
       PORT: "5050"
       LAB_BIND: 0.0.0.0
+      # Asserts that the port above is published on 127.0.0.1 only (a test pins both). Live stays off in the container anyway:
+      # it has no settings file and cannot reach a gateway on the host's loopback (README, "Mock and live modes").
+      LAB_DOCKER_LOOPBACK_PUBLISH: "1"
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
