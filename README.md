@@ -3,7 +3,7 @@
 An interactive lab for how PingGateway (IG) routes behave: which route a request matches and why, the `WWW-Authenticate` shapes that break clients, and token introspection. A simulated evaluator, not real PingGateway: no gateway, no tenant, and in Mock mode (the default) no network. An opt-in Live mode can send one request to your own local gateway and show its real answer beside the simulator's prediction.
 
 Tier: Tester
-Repo: https://github.com/ping-sandbox/ping-gateway-route-LAB
+Repo: https://github.com/curtismu7/ping-gateway-route-LAB
 Catalog: A19
 
 The catalog id A19 is carried over from the old `ping-gateway-route-lab` repo (the shelf catalog row "PingGateway route lab"). Treat it as a placeholder until the owner confirms the row for this repo. The GitHub repo above is created only when the owner approves it; until then, run from a local folder.
@@ -34,7 +34,7 @@ This lab is about route matching, header shapes and introspection. The identity-
 Prerequisites: Node 26 or newer. Docker is needed only for the Docker form.
 
 ```
-git clone https://github.com/ping-sandbox/ping-gateway-route-LAB.git
+git clone https://github.com/curtismu7/ping-gateway-route-LAB.git
 cd ping-gateway-route-LAB
 npm ci
 npm run build
