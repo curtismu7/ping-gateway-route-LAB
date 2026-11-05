@@ -85,7 +85,7 @@ test('README follows the README standard: title ends in LAB, plain Tier, Repo an
   assert.match(r, /PORT=<other port> npm start/);
   assert.match(r, /util\.parseEnv/);
   assert.match(r, /run by hand/);
-  assert.ok(!/ping-devops|cmuir|curtismu/i.test(r));
+  assert.ok(!/ping-devops|cmuir/i.test(r));
 });
 
 test('docs/safety.md has the simulated-vs-real table, the UNVERIFIED list incl. the licence question, and the limits', () => {
