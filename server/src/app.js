@@ -21,6 +21,7 @@ import { hideCredentials } from './echoGuard.js';
 import { LIVE_LIMITS, METHOD_ALLOW, REQUEST_HEADER_ALLOW, RESPONSE_HEADER_ALLOW } from './liveClient.js';
 import { LIVE_EXPERIMENTS } from './liveExperiments.js';
 import { DIAGRAM_NAMES, hasDiagram, rawDiagram } from './diagramData.js';
+import { shelfInfo } from './shelfLink.js';
 
 const WEB_DIST = process.env.WEB_DIST || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 const bad = (res, message, status = 400) => res.status(status).json({ error: status === 404 ? 'not_found' : 'bad_request', message });
@@ -187,6 +188,7 @@ export function createApp({ live = createLive(), health = createHealth({ runtime
   app.use('/api', api);
 
   if (fs.existsSync(path.join(webDist, 'index.html'))) {
+app.get('/api/shelf', (_req, res) => { res.set('Cache-Control', 'no-store'); res.json(shelfInfo()); }); // the header "Shelf" button
     app.use(express.static(webDist));
     app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(webDist, 'index.html')));
   }
