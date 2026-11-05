@@ -4,7 +4,7 @@
       "id": "ping-gateway-route-lab",
       "name": "Ping Gateway Route LAB (simulated)",
       "catalogId": "A19",
-      "kind": "Tester",
+      "kind": "Demo",
       "description": "Simulated evaluator, not real PingGateway: which route a request matches and why, the empty-first-param WWW-Authenticate bug, RFC 9728 metadata lint and an RFC 7662 introspection stub. Mock by default; opt-in Live (host-run) compares one request with your own loopback gateway.",
       "url": "http://localhost:5050",
       "healthPath": "/api/health",

@@ -2,7 +2,7 @@
 
 An interactive lab for how PingGateway (IG) routes behave: which route a request matches and why, the `WWW-Authenticate` shapes that break clients, and token introspection. A simulated evaluator, not real PingGateway: no gateway, no tenant, and in Mock mode (the default) no network. An opt-in Live mode can send one request to your own local gateway and show its real answer beside the simulator's prediction.
 
-Tier: Tester
+Tier: Demo
 Repo: https://github.com/curtismu7/ping-gateway-route-LAB
 Catalog: A19
 

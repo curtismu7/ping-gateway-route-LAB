@@ -1,4 +1,4 @@
-# ping-gateway-route-LAB (Tester tier, catalog A19 carried over: a placeholder until the owner confirms it)
+# ping-gateway-route-LAB (Demo tier, catalog A19 carried over: a placeholder until the owner confirms it)
 
 A simulated PingGateway route evaluator: route conditions, a route table with shadowing, a WWW-Authenticate linter and a mock introspection server. It is not real PingGateway and never claims to be. Mock by default (zero network). Opt-in Live mode sends one request to your own loopback gateway and shows its real answer beside the simulator's prediction.
 
