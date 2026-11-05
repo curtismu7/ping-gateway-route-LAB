@@ -33,12 +33,12 @@ test('content pack validation rejects a broken pack', () => {
   assert.ok(validatePack(pack).length > 0);
 });
 
-test('shelf entry matches the demo: id, catalog id, Tester kind, port, health path, loopback url, portable composeFile', () => {
+test('shelf entry matches the demo: id, catalog id, Demo kind, port, health path, loopback url, portable composeFile', () => {
   const [d] = JSON.parse(read('docs/shelf-entry.json')).demos;
   assert.ok(d.name.length <= 300 && d.description.length > 0 && d.description.length <= 300, 'the shelf refuses to start on a description over 300 characters');
   assert.equal(d.id, 'ping-gateway-route-lab');
   assert.equal(d.catalogId, 'A19', 'carried over from the old repo; a placeholder until the owner confirms the catalog row');
-  assert.equal(d.kind, 'Tester');
+  assert.equal(d.kind, 'Demo');
   assert.equal(d.healthPath, '/api/health');
   const u = new URL(d.url);
   assert.equal(u.hostname, 'localhost');
@@ -73,7 +73,7 @@ test('README is true: default port, commands exist, endpoints are real, the labe
 test('README follows the README standard: title ends in LAB, plain Tier, Repo and Catalog lines, the 12 sections of the standard in order, the port text, no internal names', () => {
   const r = read('README.md');
   assert.match(r.split('\n')[0], /^# .* LAB$/);
-  assert.match(r, /^Tier: Tester$/m);
+  assert.match(r, /^Tier: Demo$/m);
   assert.match(r, /^Repo: https:\/\/github\.com\/curtismu7\/ping-gateway-route-LAB$/m);
   const titles = [...r.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
   const want = ['What is simulated', 'Run from a clone', 'Settings file', 'Ports, and what to do if the port is taken', 'Mock and live modes', 'Health, doctor and reset', 'Docker', 'Tests', 'Troubleshooting', 'Ownership'];
