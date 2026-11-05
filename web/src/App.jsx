@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ShelfLink from "./components/ShelfLink.jsx";
 import { getCatalog, getDiagram, getInfo, getRoutes, resetServer, runScenario } from "./lib/api.js";
 import { boxesFromDoc } from "./lib/diagram.js";
 import { fromRun } from "./lib/session.js";
@@ -80,7 +81,8 @@ export default function App() {
   const bareHeader = (
     <header className="top">
       <h1><span className="mark" aria-hidden="true">IG</span> Ping Gateway Route LAB</h1>
-      <div className="tools-right"><ModeToggle info={info} mode={mode} setMode={setMode} note={modeNote} setNote={setModeNote} /></div>
+      <div className="tools-right">
+            <ShelfLink /><ModeToggle info={info} mode={mode} setMode={setMode} note={modeNote} setNote={setModeNote} /></div>
     </header>
   );
   if (loadError) return shell(<main className="page" id="main" tabIndex={-1}><p className="alert" role="alert">Could not reach the lab server: {loadError}</p></main>, bareHeader);
