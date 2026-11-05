@@ -2,3 +2,4 @@
 # (hunter2hunter2, an alphabet token, a made-up JWT, a truncated private-key header). Fingerprints are commit:file:rule:line.
 8f26db44a92c366c5ad3c28754e790ff2955f24f:server/test/liveClient.test.js:private-key:198
 8f26db44a92c366c5ad3c28754e790ff2955f24f:server/test/liveClient.test.js:generic-api-key:198
+d9dcc2a176cd4cf21487416d73a105c91d21a47a:server/test/liveClient.test.js:generic-api-key:198
