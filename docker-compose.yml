@@ -9,6 +9,7 @@ services:
     ports:
       - "127.0.0.1:${HOST_PORT:-5050}:5050"
     environment:
+      SHELF_URL: ${SHELF_URL:-}
       PORT: "5050"
       LAB_BIND: 0.0.0.0
       # Asserts that the port above is published on 127.0.0.1 only (a test pins both). Live stays off in the container anyway:
