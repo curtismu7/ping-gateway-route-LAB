@@ -56,7 +56,7 @@ describe("shell", () => {
     screen.getByRole("tab", { name: "Routes" }).focus();
     await user.keyboard("{ArrowRight}");
     await waitFor(() => expect(screen.getByRole("tab", { name: "Request simulator" })).toHaveAttribute("aria-selected", "true"));
-    await user.click(screen.getByRole("button", { name: /Theme/ }));
+    await user.selectOptions(screen.getByTestId("theme"), "light");
     expect(document.documentElement.dataset.theme).toBe("light");
     await user.click(screen.getByRole("button", { name: "Present" }));
     await user.click(screen.getByRole("button", { name: "Present" }));

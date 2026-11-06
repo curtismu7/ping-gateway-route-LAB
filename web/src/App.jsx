@@ -133,7 +133,7 @@ function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme,
     } catch (e) { setResetNote(`Reset failed: ${e.message}`); }
   }, [resetAll, refreshRoutes, cast]);
 
-  const cycle = () => { const next = { system: "light", light: "dark", dark: "system" }[theme]; setTheme(next); write("rl.theme", next); };
+  const setThemePersist = (v) => { setTheme(v); write("rl.theme", v); };
   const togglePresent = () => setPresent(!present);
   const go = (id) => { window.location.hash = `#/${id}`; };
   const onTabKey = (e) => {
@@ -161,7 +161,13 @@ function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme,
           </label>
           <button type="button" onClick={resetLab}>Reset lab</button>
           <button type="button" aria-pressed={present} aria-keyshortcuts="P" title="Presenter mode (P to toggle, Esc to leave)" onClick={togglePresent}>Present</button>
-          <button type="button" onClick={cycle} title="Theme: system, light, dark">Theme: {theme}</button>
+          <label className="inline">Theme
+            <select value={theme} onChange={(e) => setThemePersist(e.target.value)} data-testid="theme">
+              <option value="system">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
         </div>
       </header>
       <p className="muted note" role="status" data-testid="reset-note">{resetNote}</p>
