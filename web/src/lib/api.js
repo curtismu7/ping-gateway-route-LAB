@@ -9,6 +9,8 @@ const need = async (p) => { const r = await p; if (!r.ok) throw new Error(r.data
 export const getCatalog = (vertical) => need(call("GET", `/api/catalog${vertical ? `?vertical=${encodeURIComponent(vertical)}` : ""}`));
 export const getRoutes = () => need(call("GET", "/api/routes"));
 export const getInfo = () => need(call("GET", "/api/info"));
+// Rule 19: the server-side Mock/Real toggle. Never throws on 409: the caller shows the server's reason.
+export const postMode = (source) => call("POST", "/api/mode", { source });
 export const getDiagram = (name = "request-path") => need(call("GET", `/api/diagram?name=${encodeURIComponent(name)}`));
 export const getRules = () => need(call("GET", "/api/rules"));
 export const putCondition = (name, condition) => call("PUT", `/api/routes/${encodeURIComponent(name)}/condition`, { condition });

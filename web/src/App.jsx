@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ShelfLink from "./components/ShelfLink.jsx";
-import { getCatalog, getDiagram, getInfo, getRoutes, resetServer, runScenario } from "./lib/api.js";
+import { getCatalog, getDiagram, getInfo, getRoutes, postMode, resetServer, runScenario } from "./lib/api.js";
 import { boxesFromDoc } from "./lib/diagram.js";
 import { fromRun } from "./lib/session.js";
 import { fill } from "./lib/fill.js";
@@ -21,20 +21,23 @@ const write = (k, v) => { try { localStorage.setItem(k, v); } catch { /* not rem
 const tabFromHash = () => { const id = window.location.hash.replace(/^#\/?/, "").split("?")[0]; return TABS.some(([t]) => t === id) ? id : "routes"; };
 const typing = (e) => !!e.target && (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable);
 
-// The Mock | Live switch is in the header of every page, in every state (loading, error, ready). Live is opt-in on the server: when it is
-// off, pressing Live leaves the page in Mock and says why. When it is on, Live changes ONE thing: the Request simulator tab can send the
-// request to the configured loopback gateway. Predictions and every other tab stay simulated, and the banner says so.
+// The Mock | Real switch is in the header of every page, in every state (loading, error, ready). Rule 19: the mode is
+// server-side (POST /api/mode, GET /api/info). Real is disabled with the server's how-to reason while Live is not allowed.
+// Real changes ONE thing: the Request simulator tab can send the request to the configured loopback gateway. Predictions and
+// every other tab stay simulated, and the banner says so.
 function ModeToggle({ info, mode, setMode, note, setNote }) {
   const live = info?.modes?.live;
-  const pressLive = () => { if (live?.available) { setMode("live"); setNote(""); } else setNote(live?.message || LIVE_FALLBACK); };
-  const isLive = mode === "live";
+  const realAvailable = info ? info.realAvailable !== false : null; // null = not loaded yet
+  const pressLive = () => { setMode("real"); };
+  const isReal = mode === "live" || mode === "real";
   return (
     <div className="mode-toggle">
       <div className="mode-toggle__switch" role="group" aria-label="Mode">
-        <button type="button" aria-pressed={!isLive} onClick={() => { setMode("mock"); setNote(""); }} data-testid="mode-mock">Mock</button>
-        <button type="button" aria-pressed={isLive} aria-describedby="mode-note" onClick={pressLive} data-testid="mode-live">Live</button>
+        <button type="button" aria-pressed={!isReal} onClick={() => setMode("mock")} data-testid="mode-mock">Mock</button>
+        <button type="button" aria-pressed={isReal} aria-describedby="mode-note" disabled={realAvailable === false}
+          title={realAvailable === false ? (info?.realReason || LIVE_FALLBACK) : undefined} onClick={pressLive} data-testid="mode-live">Real</button>
       </div>
-      <span className="mode-toggle__chip" data-testid="mode">{isLive ? `Mode: live (your gateway at ${live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
+      <span className="mode-toggle__chip" data-testid="mode">{isReal ? `Mode: live (your gateway at ${live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
       <p className="mode-toggle__note" id="mode-note" role="status" data-testid="mode-note">{note}</p>
     </div>
   );
@@ -52,7 +55,17 @@ export default function App() {
   const [mode, setMode] = useState("mock");
 
   useEffect(() => { Promise.all([getCatalog(), getDiagram()]).then(([c, d]) => { setCatalog(c); setDiagram(d); }).catch((e) => setLoadError(e.message)); }, []);
-  useEffect(() => { getInfo().then((i) => { setInfo(i); if (i.mode === "live" && i.modes?.live?.available) setMode("live"); }).catch(() => {}); }, []);
+  useEffect(() => { getInfo().then((i) => { setInfo(i); if (i.source === "real") setMode("live"); }).catch(() => {}); }, []);
+  // Rule 19: switching calls POST /api/mode, then reloads the info (and the app reloads its data through setMode).
+  const switchMode = useCallback(async (source) => {
+    setModeNote("");
+    try {
+      const r = await postMode(source);
+      if (!r.ok) { setModeNote(r.data?.message || LIVE_FALLBACK); return; }
+      setInfo((prev) => ({ ...(prev || {}), ...r.data, modes: prev?.modes }));
+      setMode(source === "real" ? "live" : "mock");
+    } catch { setModeNote(LIVE_FALLBACK); }
+  }, []);
   useEffect(() => { const on = () => setTab(tabFromHash()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   useEffect(() => { if (theme === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => { if (present) document.documentElement.dataset.present = "1"; else delete document.documentElement.dataset.present; write("rl.present", present ? "1" : "0"); }, [present]);
@@ -82,12 +95,12 @@ export default function App() {
     <header className="top">
       <h1><span className="mark" aria-hidden="true">IG</span> Ping Gateway Route LAB</h1>
       <div className="tools-right">
-            <ShelfLink /><ModeToggle info={info} mode={mode} setMode={setMode} note={modeNote} setNote={setModeNote} /></div>
+            <ShelfLink /><ModeToggle info={info} mode={mode} setMode={switchMode} note={modeNote} setNote={setModeNote} /></div>
     </header>
   );
   if (loadError) return shell(<main className="page" id="main" tabIndex={-1}><p className="alert" role="alert">Could not reach the lab server: {loadError}</p></main>, bareHeader);
   if (!catalog || !diagram) return shell(<main className="page" id="main" tabIndex={-1}><p className="muted" role="status">Loading the lab...</p></main>, bareHeader);
-  return shell(<Shell mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} setTheme={setTheme} present={present} setPresent={setPresent} modeToggle={<ModeToggle info={info} mode={mode} setMode={setMode} note={modeNote} setNote={setModeNote} />} />);
+  return shell(<Shell mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} setTheme={setTheme} present={present} setPresent={setPresent} modeToggle={<ModeToggle info={info} mode={mode} setMode={switchMode} note={modeNote} setNote={setModeNote} />} />);
 }
 
 function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme, present, setPresent, modeToggle }) {

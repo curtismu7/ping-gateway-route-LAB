@@ -56,6 +56,24 @@ export function createApp({ live = createLive(), health = createHealth({ runtime
   const echo = (res, body, request) => res.json(live.status().enabled ? hideCredentials(body, request) : body);
   const strip = (m) => { const { trace: _t, context: _c, routeSet: _r, ...rest } = m; return { ...rest, entries: m.entries && m.entries.map(({ trace: _x, ...e }) => e) }; };
 
+  // Rule 19: the runtime server-side Mock/Real mode. Real is only available when Live is allowed (liveStatus);
+  // the two names mean the same thing here: Real = live, Mock = simulated. The requested mode starts from the
+  // environment (modeInfo), then POST /api/mode overrides it for this run.
+  const requested = { mode: modeInfo(live.env, live.status()).requested };
+  const effMode = () => (requested.mode === 'live' && live.status().enabled ? 'real' : 'mock');
+  const modeView = () => ({
+    source: effMode(),
+    realAvailable: live.status().enabled,
+    realReason: live.status().enabled ? null : live.status().reason,
+  });
+  api.post('/mode', (req, res) => {
+    const source = (req.body || {}).source;
+    if (source !== 'mock' && source !== 'real') return bad(res, 'source must be exactly "mock" or "real"');
+    if (source === 'real' && !live.status().enabled) return res.status(409).json({ error: 'real_not_available', message: live.status().reason });
+    requested.mode = source === 'real' ? 'live' : 'mock';
+    res.json(modeView());
+  });
+
   api.get('/catalog', (req, res) => {
     const v = getVertical(req.query.vertical || VERTICALS[0].id);
     if (!v) return bad(res, 'unknown vertical');
@@ -69,7 +87,7 @@ export function createApp({ live = createLive(), health = createHealth({ runtime
   api.get('/rules', (_req, res) => res.json({ rules: RULES }));
 
   // The mode the page opens in (Mock unless Live was asked for AND is allowed; otherwise the reason), the Live limits and the diagram names.
-  api.get('/info', (_req, res) => res.json({ simulated: true, label: SIMULATED_LABEL, ...modeInfo(live.env, live.status()), live: { limits: { ...LIVE_LIMITS }, methods: METHOD_ALLOW, requestHeaders: REQUEST_HEADER_ALLOW, responseHeaders: RESPONSE_HEADER_ALLOW }, diagrams: DIAGRAM_NAMES }));
+  api.get('/info', (_req, res) => res.json({ simulated: true, label: SIMULATED_LABEL, ...modeInfo(live.env, live.status()), mode: effMode(), ...modeView(), live: { limits: { ...LIVE_LIMITS }, methods: METHOD_ALLOW, requestHeaders: REQUEST_HEADER_ALLOW, responseHeaders: RESPONSE_HEADER_ALLOW }, diagrams: DIAGRAM_NAMES }));
   api.get('/live/experiments', (_req, res) => res.json({ experiments: LIVE_EXPERIMENTS }));
   // Live: send the composed request to the one configured loopback gateway and compare. Refused unless Live is on; needs confirm:true.
   api.post('/live/send', async (req, res) => {

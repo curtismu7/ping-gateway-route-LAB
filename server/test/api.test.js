@@ -181,3 +181,19 @@ test('hostile bodies over HTTP never crash the server', async () => {
     assert.equal((await rawHttp(`${base}/api/health`)).status, 200);
   });
 });
+
+// Rule 19: the Mock/Real toggle.
+test('rule 19: /api/mode switches both ways and 409s when Live is not allowed', async () => {
+  await withServer(async (base) => {
+    const get = async () => json(await rawHttp(`${base}/api/info`));
+    assert.equal((await get()).source, 'mock');
+    assert.equal((await get()).realAvailable, false, 'hermetic by default: Real unavailable with a reason');
+    assert.match((await get()).realReason, /Live is off/);
+    const refused = await post(base, '/api/mode', { source: 'real' }, { origin: base });
+    assert.equal(refused.status, 409);
+    assert.equal(json(refused).error, 'real_not_available');
+    assert.equal((await get()).source, 'mock', 'a refused switch changes nothing');
+    assert.equal((await post(base, '/api/mode', { source: 'mock' }, { origin: base })).status, 200, 'switching to Mock always works');
+    assert.equal((await post(base, '/api/mode', { source: 'nope' }, { origin: base })).status, 400);
+  });
+});

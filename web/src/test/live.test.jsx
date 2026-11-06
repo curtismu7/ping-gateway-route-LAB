@@ -52,7 +52,7 @@ describe("Live mode in the page", () => {
       expect(screen.getByTestId("banner")).toBeVisible();
     }
     await user.click(screen.getByTestId("mode-mock"));
-    expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock");
+    await waitFor(() => expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock"));
     expect(screen.getByTestId("mode")).toHaveTextContent(/Mode: mock/);
   });
 
