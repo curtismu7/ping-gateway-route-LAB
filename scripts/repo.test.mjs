@@ -206,9 +206,11 @@ test('every page has the Mock | Live toggle, Live switches on only when the serv
   assert.equal((app.match(/<ModeToggle /g) || []).length, 2, 'the toggle is in the loading/error header and in the full header');
   assert.match(app, /e\.key === "p"/);
   assert.match(app, /e\.key === "Escape"/);
-  assert.equal((app.match(/setMode\("live"\)/g) || []).length, 2, 'Live is set in two places only: the toggle and the opening mode');
-  assert.match(app, /if \(live\?\.available\) \{ setMode\("live"\)/, 'the toggle turns Live on only when the server says it is available');
-  assert.match(app, /i\.mode === "live" && i\.modes\?\.live\?\.available/, 'the opening mode is Live only when the server says so');
+  assert.equal((app.match(/setMode\("real"\)/g) || []).length, 1, 'the toggle asks for Real in one place, and it goes through the server (POST /api/mode)');
+  assert.match(app, /disabled=\{realAvailable === false\}/, 'the toggle disables Real when the server says it is not available');
+  assert.match(app, /if \(!r\.ok\) \{ setModeNote\([^;]*\); return; \}\s*setInfo\([^;]*\);\s*setMode\(source === "real" \? "live" : "mock"\)/, 'the page switches to Live only after the server accepted the change');
+  assert.equal((app.match(/setMode\("live"\)/g) || []).length, 1, 'the opening mode is the only other place that sets Live');
+  assert.match(app, /if \(i\.source === "real"\) setMode\("live"\)/, 'the opening mode is Live only when the server says it is in real mode');
   assert.match(app, /data-state="live"/);
   assert.match(app, /data-state="mock"/);
 });
