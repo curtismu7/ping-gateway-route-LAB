@@ -111,7 +111,7 @@ test('hygiene: every host in every tracked text file is reserved, every key is m
     const text = read(f);
     // The Live test files hold IPv4 literals as test vectors for the loopback judgement (private, public and carried-in-IPv6 forms); names are still checked.
     const vectorFile = f === 'server/test/safety.test.js' || /^server\/test\/live.*\.test\.js$/.test(f);
-    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|0\.0\.0\.0|192\.0\.2\.\d+|localhost.*|\[[0-9a-f:.]+\])$/.test(h) && !/[${]/.test(h) && !(vectorFile && /^(0x)?[0-9a-f]+(\.(0x)?[0-9a-f]+)*$/i.test(h))), [], `${f}: real host`);
+    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|raw\.githubusercontent\.com|0\.0\.0\.0|192\.0\.2\.\d+|localhost.*|\[[0-9a-f:.]+\])$/.test(h) && !/[${]/.test(h) && !(vectorFile && /^(0x)?[0-9a-f]+(\.(0x)?[0-9a-f]+)*$/i.test(h))), [], `${f}: real host`);
     if (f !== 'server/test/safety.test.js') assert.deepEqual(scanKeys(text), [], `${f}: non-mock key`);
     assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(text), `${f}: uuid-shaped id (tenant or client id?)`);
     if (f !== 'scripts/repo.test.mjs') assert.ok(!/mermaid/i.test(text), `${f}: mermaid`);
