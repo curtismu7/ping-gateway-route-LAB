@@ -67,7 +67,7 @@ export const MUTATIONS = [
   ['app: simulated label header removed', 'app.js', "res.set('X-Simulated-Evaluator', SIMULATED_LABEL);", ''],
   ['trace: tokens not masked', 'trace.js', "return String(text).replace(/mock-tok-", "return String(text); /* off */ String(text).replace(/mock-tok-"],
   ['safety: cross-site writes allowed', 'safety.js', "if (site && site !== 'same-origin' && site !== 'none')", 'if (false)'],
-  ['safety: Host check removed', 'safety.js', "if (!isLoopbackHost(host)) return res.status(403).json({ error: 'bad_host'", "if (false) return res.status(403).json({ error: 'bad_host'"],
+  ['safety: Host check removed', 'safety.js', "if (!isLoopbackHost(host) && !isLabProxyHost(raw, allowed, port)) return res.status(403).json({ error: 'bad_host'", "if (false) return res.status(403).json({ error: 'bad_host'"],
   ['safety: port range widened', 'safety.js', 'port < PORT_MIN || port > PORT_MAX', 'false'],
   ['netguard: udp connect not guarded', 'netguard.js', "if (!ok) { attempts.push(`udp-connect:", "if (false) { attempts.push(`udp-connect:"],
   ['config: asking for live turns it on', 'config.js', "mode: requested === 'live' && live.enabled ? 'live' : 'mock'", 'mode: requested'],
