@@ -19,4 +19,4 @@ A simulated PingGateway route evaluator: route conditions, a route table with sh
 - Ports 5050-5099 only, never 8080, 5173, 3000 or 4000. Only `.example` / `.invalid` hosts. The family history scan must print 0 and gitleaks must be clean; never print or embed the forbidden list.
 - Never `crypto.generateKeyPairSync('ec')` or async EC `generateKeyPair` (SIGABRT on Node 20 CI). Use `createECDH` + `createPrivateKey` or fixtures. This lab has no key material at all.
 - Loopback-only bind, Host check, same-origin writes; Docker publishes `127.0.0.1:` only.
-- One writer per repo; PR and merge on green. Commits end with the Co-Authored-By line from the session's attribution reminder.
+- One writer per repo; PR and merge on green. No AI attribution anywhere (owner, 2026-11-07): no Co-Authored-By trailer and no "Generated with" line in commits, PR bodies or files; CI runs `scripts/check-no-ai-attribution.sh`.
