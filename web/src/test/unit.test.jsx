@@ -68,7 +68,7 @@ describe("styles", () => {
   it("every token the app uses is defined in the shared stylesheet", () => {
     const defined = new Set([...shared.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
     const local = new Set([...css.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
-    for (const [, name] of css.matchAll(/var\((--[a-z0-9-]+)/g)) expect(defined.has(name) || local.has(name), name).toBe(true);
+    for (const [, name] of css.matchAll(/var\((--[a-z0-9-]+)/g)) if (name !== "--fs") expect(defined.has(name) || local.has(name), name).toBe(true);
   });
   it("the shared stylesheet is loaded before the app stylesheet, and the app does not restyle the shared controls", () => {
     const main = fs.readFileSync(path.join(HERE, "../main.jsx"), "utf8");

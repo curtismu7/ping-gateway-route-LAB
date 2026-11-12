@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import fs from "node:fs";
 import ShelfLink from "./components/ShelfLink.jsx";
 import { getCatalog, getDiagram, getInfo, getRoutes, postMode, resetServer, runScenario } from "./lib/api.js";
 import { boxesFromDoc } from "./lib/diagram.js";
@@ -11,6 +12,9 @@ import LintTab from "./tabs/LintTab.jsx";
 import IntrospectionTab from "./tabs/IntrospectionTab.jsx";
 import DiagramTab from "./tabs/DiagramTab.jsx";
 import RawTab from "./tabs/RawTab.jsx";
+import TopMenu, { applyFontSize } from "./top-menu/TopMenu.jsx";
+
+const VERSION = (() => { try { return JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version || null; } catch { return null; } })();
 
 export const BANNER = "simulated evaluator, not real PingGateway";
 export const TABS = [["routes", "Routes"], ["simulator", "Request simulator"], ["lint", "WWW-Authenticate linter"], ["introspection", "Introspection"], ["diagram", "Diagram"], ["raw", "Raw"]];
@@ -20,28 +24,6 @@ const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { re
 const write = (k, v) => { try { localStorage.setItem(k, v); } catch { /* not remembered */ } };
 const tabFromHash = () => { const id = window.location.hash.replace(/^#\/?/, "").split("?")[0]; return TABS.some(([t]) => t === id) ? id : "routes"; };
 const typing = (e) => !!e.target && (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable);
-
-// The Mock | Real switch is in the header of every page, in every state (loading, error, ready). Rule 19: the mode is
-// server-side (POST /api/mode, GET /api/info). Real is disabled with the server's how-to reason while Live is not allowed.
-// Real changes ONE thing: the Request simulator tab can send the request to the configured loopback gateway. Predictions and
-// every other tab stay simulated, and the banner says so.
-function ModeToggle({ info, mode, setMode, note, setNote }) {
-  const live = info?.modes?.live;
-  const realAvailable = info ? info.realAvailable !== false : null; // null = not loaded yet
-  const pressLive = () => { setMode("real"); };
-  const isReal = mode === "live" || mode === "real";
-  return (
-    <div className="mode-toggle">
-      <div className="mode-toggle__switch" role="group" aria-label="Mode">
-        <button type="button" aria-pressed={!isReal} onClick={() => setMode("mock")} data-testid="mode-mock">Mock</button>
-        <button type="button" aria-pressed={isReal} aria-describedby="mode-note" disabled={realAvailable === false}
-          title={realAvailable === false ? (info?.realReason || LIVE_FALLBACK) : undefined} onClick={pressLive} data-testid="mode-live">Real</button>
-      </div>
-      <span className="mode-toggle__chip" data-testid="mode">{isReal ? `Mode: live (your gateway at ${live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
-      <p className="mode-toggle__note" id="mode-note" role="status" data-testid="mode-note">{note}</p>
-    </div>
-  );
-}
 
 export default function App() {
   const [catalog, setCatalog] = useState(null);
@@ -53,6 +35,8 @@ export default function App() {
   const [present, setPresent] = useState(() => read("rl.present", "0") === "1");
   const [modeNote, setModeNote] = useState("");
   const [mode, setMode] = useState("mock");
+  const [fontStep, setFontStep] = useState(() => { const f = read("rl.font", ""); return ["S", "M", "L"].includes(f) ? f : "M"; });
+  useEffect(() => { applyFontSize(fontStep); write("rl.font", fontStep); }, [fontStep]);
 
   useEffect(() => { Promise.all([getCatalog(), getDiagram()]).then(([c, d]) => { setCatalog(c); setDiagram(d); }).catch((e) => setLoadError(e.message)); }, []);
   useEffect(() => { getInfo().then((i) => { setInfo(i); if (i.source === "real") setMode("live"); }).catch(() => {}); }, []);
@@ -69,6 +53,7 @@ export default function App() {
   useEffect(() => { const on = () => setTab(tabFromHash()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   useEffect(() => { if (theme === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => { if (present) document.documentElement.dataset.present = "1"; else delete document.documentElement.dataset.present; write("rl.present", present ? "1" : "0"); }, [present]);
+  const setThemePersist = (v) => { setTheme(v); write("rl.theme", v); };
   // Presenter mode: P toggles it, Esc leaves it (not while typing). It hides [data-admin-only] text only; the banner stays.
   useEffect(() => {
     const on = (e) => {
@@ -95,15 +80,24 @@ export default function App() {
     <header className="top">
       <h1><span className="mark" aria-hidden="true">IG</span> Ping Gateway Route LAB</h1>
       <div className="tools-right">
-            <ShelfLink /><ModeToggle info={info} mode={mode} setMode={switchMode} note={modeNote} setNote={setModeNote} /></div>
+            <TopMenu
+              mode={{ value: (mode === "live" || mode === "real") ? "real" : "mock", onChange: switchMode, realAvailable: info ? info.realAvailable !== false : null, realHint: info?.realReason || LIVE_FALLBACK }}
+              theme={{ value: theme, onChange: setThemePersist }}
+              fontSize={{ value: fontStep, onChange: setFontStep }}
+              present={{ active: present, onToggle: () => setPresent(!present) }}
+              shelfUrl="https://local.ping-devops.com:8443/"
+              help={{ href: "https://github.com/curtismu7/ping-gateway-route-LAB#readme" }}
+              version={VERSION}
+            />
+          </div>
     </header>
   );
   if (loadError) return shell(<main className="page" id="main" tabIndex={-1}><p className="alert" role="alert">Could not reach the lab server: {loadError}</p></main>, bareHeader);
   if (!catalog || !diagram) return shell(<main className="page" id="main" tabIndex={-1}><p className="muted" role="status">Loading the lab...</p></main>, bareHeader);
-  return shell(<Shell mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} setTheme={setTheme} present={present} setPresent={setPresent} modeToggle={<ModeToggle info={info} mode={mode} setMode={switchMode} note={modeNote} setNote={setModeNote} />} />);
+  return shell(<Shell mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} setTheme={setTheme} present={present} setPresent={setPresent} switchMode={switchMode} setModeNote={setModeNote} setThemePersist={setThemePersist} setFontStep={setFontStep} fontStep={fontStep} modeNote={modeNote} />);
 }
 
-function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme, present, setPresent, modeToggle }) {
+function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme, present, setPresent, switchMode, setModeNote, setThemePersist, setFontStep, fontStep, modeNote }) {
   const [routes, setRoutes] = useState({ routes: [], rejected: [] });
   const [session, setSession] = useState(null);
   const [cursor, setCursor] = useState(-1);
@@ -146,7 +140,6 @@ function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme,
     } catch (e) { setResetNote(`Reset failed: ${e.message}`); }
   }, [resetAll, refreshRoutes, cast]);
 
-  const setThemePersist = (v) => { setTheme(v); write("rl.theme", v); };
   const togglePresent = () => setPresent(!present);
   const go = (id) => { window.location.hash = `#/${id}`; };
   const onTabKey = (e) => {
@@ -166,24 +159,23 @@ function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme,
       <header className="top">
         <h1><span className="mark" aria-hidden="true">IG</span> Ping Gateway Route LAB</h1>
         <div className="tools-right">
-          {modeToggle}
-          <label className="inline">Persona
-            <select value={catalog.vertical} onChange={(e) => pickVertical(e.target.value)} aria-label="Persona and vertical">
-              {catalog.verticals.map((v) => <option key={v.id} value={v.id}>{v.name}: {v.cast.client}</option>)}
-            </select>
-          </label>
-          <button type="button" onClick={resetLab}>Reset lab</button>
-          <button type="button" aria-pressed={present} aria-keyshortcuts="P" title="Presenter mode (P to toggle, Esc to leave)" onClick={togglePresent}>Present</button>
-          <label className="inline">Theme
-            <select value={theme} onChange={(e) => setThemePersist(e.target.value)} data-testid="theme">
-              <option value="system">Auto</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
+          <TopMenu
+            mode={{ value: (mode === "live" || mode === "real") ? "real" : "mock", onChange: switchMode, realAvailable: info ? info.realAvailable !== false : null, realHint: info?.realReason || LIVE_FALLBACK }}
+            vertical={{ value: catalog.vertical, onChange: pickVertical, options: catalog.verticals.map((v) => v.id) }}
+            theme={{ value: theme, onChange: setThemePersist }}
+            fontSize={{ value: fontStep, onChange: setFontStep }}
+            present={{ active: present, onToggle: togglePresent }}
+            help={{ href: "https://github.com/curtismu7/ping-gateway-route-LAB#readme" }}
+            version={VERSION}
+            onReset={resetLab}
+          >
+            <span className="mode-toggle__chip" data-testid="mode">{(mode === "live" || mode === "real") ? `Mode: live (your gateway at ${info?.modes?.live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
+            <ShelfLink />
+          </TopMenu>
         </div>
       </header>
       <p className="muted note" role="status" data-testid="reset-note">{resetNote}</p>
+      {modeNote && <p className="muted note" role="status" data-testid="mode-note">{modeNote}</p>}
       <div className="tabbar" role="tablist" aria-label="Lab sections" onKeyDown={onTabKey}>
         {TABS.map(([id, label]) => (
           <button key={id} id={`tab-${id}`} ref={(el) => { tabRefs.current[id] = el; }} type="button" role="tab" aria-selected={id === tab} aria-controls="main" tabIndex={id === tab ? 0 : -1} className="tab" onClick={() => go(id)}>{label}</button>

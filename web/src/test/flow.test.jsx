@@ -26,13 +26,13 @@ describe("shell", () => {
   it("has the six tabs, the persona picker and the diagram loaded from the server", async () => {
     await open();
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Routes", "Request simulator", "WWW-Authenticate linter", "Introspection", "Diagram", "Raw"]);
-    expect(screen.getByLabelText("Persona and vertical")).toBeInTheDocument();
+    expect(screen.getByTestId("vertical-select")).toBeInTheDocument();
     expect(srv.calls.some((c) => c.path === "/api/diagram")).toBe(true);
   });
 
   it("shows the simulated banner on every tab, in presenter mode too, and before the app has loaded", async () => {
     const user = await open();
-    await user.click(screen.getByRole("button", { name: "Present" }));
+    await user.click(screen.getByTestId("presenter"));
     for (const [, label] of TABS) {
       await tab(user, label);
       expect(screen.getByTestId("banner")).toHaveTextContent(BANNER);
@@ -56,10 +56,10 @@ describe("shell", () => {
     screen.getByRole("tab", { name: "Routes" }).focus();
     await user.keyboard("{ArrowRight}");
     await waitFor(() => expect(screen.getByRole("tab", { name: "Request simulator" })).toHaveAttribute("aria-selected", "true"));
-    await user.selectOptions(screen.getByTestId("theme"), "light");
+    await user.selectOptions(screen.getByTestId("theme-select"), "light");
     expect(document.documentElement.dataset.theme).toBe("light");
-    await user.click(screen.getByRole("button", { name: "Present" }));
-    await user.click(screen.getByRole("button", { name: "Present" }));
+    await user.click(screen.getByTestId("presenter"));
+    await user.click(screen.getByTestId("presenter"));
     expect(document.documentElement.dataset.present).toBeUndefined();
   });
 
@@ -77,21 +77,20 @@ describe("mode toggle and presenter mode", () => {
     const user = await open();
     for (const [, label] of TABS) {
       await tab(user, label);
-      expect(screen.getByTestId("mode-mock")).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByTestId("mode-live")).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByTestId("mode-select")).toHaveValue("mock");
       expect(screen.getByTestId("mode")).toHaveTextContent(/Mode: mock/);
       expect(screen.getByTestId("banner")).toHaveTextContent(/Mock mode/);
       expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock");
     }
     srv.calls.length = 0;
-    expect(screen.getByTestId("mode-live")).toBeDisabled(); // Real unavailable: the button is off
-    expect(screen.getByTestId("mode-live").getAttribute("title")).toMatch(/Live is off/); // with the how-to tooltip
-    expect(screen.getByTestId("mode-live")).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByTestId("mode-mock")).toHaveAttribute("aria-pressed", "true");
+    const realOption = screen.getByTestId("mode-select").querySelector('option[value="real"]');
+    expect(realOption.disabled).toBe(true); // Real unavailable: the option is off
+    expect(realOption.getAttribute("title")).toMatch(/Live is off/); // with the how-to tooltip
+    expect(screen.getByTestId("mode-select")).toHaveValue("mock");
     expect(screen.getByTestId("banner")).toHaveTextContent(BANNER);
     expect(srv.calls.filter((c) => c.method !== "GET")).toEqual([]);
-    await user.click(screen.getByTestId("mode-mock"));
-    expect(screen.getByTestId("mode-note")).toHaveTextContent("");
+    await user.selectOptions(screen.getByTestId("mode-select"), "mock");
+    expect(screen.queryByTestId("mode-note")).toBeNull();
   });
 
   it("the toggle is also there while loading and when the server cannot be reached", async () => {
@@ -99,7 +98,7 @@ describe("mode toggle and presenter mode", () => {
     globalThis.fetch = () => Promise.reject(new Error("down"));
     render(<App />);
     await screen.findByRole("alert");
-    expect(screen.getByTestId("mode-mock")).toBeInTheDocument();
+    expect(screen.getByTestId("mode-select")).toBeInTheDocument();
     globalThis.fetch = keep;
   });
 
@@ -108,9 +107,9 @@ describe("mode toggle and presenter mode", () => {
     expect(document.documentElement.dataset.present).toBeUndefined();
     await user.keyboard("p");
     expect(document.documentElement.dataset.present).toBe("1");
-    expect(screen.getByRole("button", { name: "Present" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("presenter")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("banner")).toBeVisible();
-    expect(screen.getByTestId("mode-mock")).toBeVisible();
+    expect(screen.getByTestId("mode-select")).toBeVisible();
     await user.keyboard("{Escape}");
     expect(document.documentElement.dataset.present).toBeUndefined();
     await user.keyboard("P");
@@ -296,7 +295,7 @@ describe("stories, raw, reset, persona", () => {
     await user.click(screen.getByRole("button", { name: "Run story" }));
     expect(await screen.findByTestId("verdict")).toHaveTextContent(/every expectation/i);
     expect(document.body.textContent).not.toMatch(/\{\{/);
-    await user.selectOptions(screen.getByLabelText("Persona and vertical"), "banking");
+    await user.selectOptions(screen.getByTestId("vertical-select"), "banking");
     await user.click(screen.getByRole("button", { name: "Run story" }));
     await screen.findByTestId("verdict");
     expect(document.body.textContent).toMatch(/bank\.example/);
@@ -333,7 +332,7 @@ describe("stories, raw, reset, persona", () => {
     await user.click(await screen.findByRole("button", { name: /Load the \\\. trap/ }));
     await user.click(screen.getByRole("button", { name: /^Apply to/ }));
     await waitFor(() => expect(within(screen.getByTestId("route-table")).getByText("NOT LOADED")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: "Reset lab" }));
+    await user.click(screen.getByTestId("reset"));
     await waitFor(() => expect(screen.getByTestId("reset-note")).toHaveTextContent(/14 shipped routes/));
     await waitFor(() => expect(within(screen.getByTestId("route-table")).queryByText("NOT LOADED")).toBeNull());
   });

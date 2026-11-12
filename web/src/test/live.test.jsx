@@ -30,28 +30,28 @@ async function open(hash = "") {
 }
 const tab = (user, name) => user.click(screen.getByRole("tab", { name }));
 async function goLive(user) {
-  await waitFor(() => expect(screen.getByTestId("mode-live")).toBeEnabled());
-  await user.click(screen.getByTestId("mode-live"));
-  await waitFor(() => expect(screen.getByTestId("mode-live")).toHaveAttribute("aria-pressed", "true"));
+  await waitFor(() => expect(screen.getByTestId("mode-select").querySelector('option[value="real"]').disabled).toBe(false));
+  await user.selectOptions(screen.getByTestId("mode-select"), "real");
+  await waitFor(() => expect(screen.getByTestId("mode-select")).toHaveValue("real"));
 }
 async function setField(user, label, value) { const el = screen.getByLabelText(label); await user.clear(el); if (value) await user.type(el, value); }
 
 describe("Live mode in the page", () => {
   it("opens in Mock even though Live is available; pressing Live switches the toggle, chip and banner on every tab, and Mock switches back", async () => {
     const user = await open();
-    expect(screen.getByTestId("mode-mock")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("mode-select")).toHaveValue("mock");
     expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock");
     await goLive(user);
     for (const [, label] of TABS) {
       await tab(user, label);
-      expect(screen.getByTestId("mode-live")).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByTestId("mode-select")).toHaveValue("real");
       expect(screen.getByTestId("mode")).toHaveTextContent(new RegExp(`Mode: live \\(your gateway at ${gw.origin.replace(/[.]/g, "\\.")}`));
       expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
       expect(screen.getByTestId("banner")).toHaveTextContent(/Live mode/);
       expect(screen.getByTestId("banner")).toHaveTextContent(BANNER);
       expect(screen.getByTestId("banner")).toBeVisible();
     }
-    await user.click(screen.getByTestId("mode-mock"));
+    await user.selectOptions(screen.getByTestId("mode-select"), "mock");
     await waitFor(() => expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock"));
     expect(screen.getByTestId("mode")).toHaveTextContent(/Mode: mock/);
   });
@@ -59,7 +59,7 @@ describe("Live mode in the page", () => {
   it("the banner stays in presenter mode while Live", async () => {
     const user = await open();
     await goLive(user);
-    await user.click(screen.getByRole("button", { name: "Present" }));
+    await user.click(screen.getByTestId("presenter"));
     expect(screen.getByTestId("banner")).toBeVisible();
     expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
   });

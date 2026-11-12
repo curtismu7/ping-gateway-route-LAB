@@ -15,7 +15,8 @@ code { font-size: 0.85rem; overflow-wrap: anywhere; }
 .mark { display: inline-grid; place-items: center; padding: 0.1rem 0.45rem; border-radius: 4px; background: var(--accent); color: var(--on-accent); font: 700 0.8rem var(--font-mono); letter-spacing: 0.08em; }
 
 .banner { position: sticky; top: 0; z-index: 5; }
-.top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.5rem 1.25rem; padding: 0.6rem 0; }
+.top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.5rem 1.25rem; padding: 0.6rem 0; position: relative; }
+html { font-size: var(--fs, 16px); }
 .tools-right { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; min-width: 0; }
 .inline { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
 .tabbar { display: flex; overflow-x: auto; padding: 4px 0; gap: 0.25rem; }
