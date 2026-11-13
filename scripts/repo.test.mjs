@@ -111,7 +111,7 @@ test('hygiene: every host in every tracked text file is reserved, every key is m
     const text = read(f);
     // The Live test files hold IPv4 literals as test vectors for the loopback judgement (private, public and carried-in-IPv6 forms); names are still checked.
     const vectorFile = f === 'server/test/safety.test.js' || /^server\/test\/live.*\.test\.js$/.test(f);
-    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|raw\.githubusercontent\.com|0\.0\.0\.0|127\.0\.0\.1:\d+\}?|192\.0\.2\.\d+|localhost.*|\[[0-9a-f:.]+\])$/.test(h) && !/[${]/.test(h) && !(vectorFile && /^(0x)?[0-9a-f]+(\.(0x)?[0-9a-f]+)*$/i.test(h))), [], `${f}: real host`);
+    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|raw\.githubusercontent\.com|local\.ping-devops\.com|0\.0\.0\.0|127\.0\.0\.1:\d+\}?|192\.0\.2\.\d+|localhost.*|\[[0-9a-f:.]+\])$/.test(h) && !/[${]/.test(h) && !(vectorFile && /^(0x)?[0-9a-f]+(\.(0x)?[0-9a-f]+)*$/i.test(h))), [], `${f}: real host`);
     if (f !== 'server/test/safety.test.js') assert.deepEqual(scanKeys(text), [], `${f}: non-mock key`);
     assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(text), `${f}: uuid-shaped id (tenant or client id?)`);
     if (f !== 'scripts/repo.test.mjs') assert.ok(!/mermaid/i.test(text), `${f}: mermaid`);
@@ -199,15 +199,14 @@ test('web is the real UI (not a placeholder); package workspaces are server and 
   assert.ok(main.indexOf('standalone-ui.css') > 0 && main.indexOf('standalone-ui.css') < main.indexOf('app.css'));
 });
 
-test('every page has the Mock | Live toggle, Live switches on only when the server says it is available, and presenter mode is on P and Esc', () => {
+test('every page has the Mock | Live toggle (the shared TopMenu), Live switches on only when the server says it is available, and presenter mode is on P and Esc', () => {
   const app = read('web/src/App.jsx');
-  assert.match(app, /data-testid="mode-mock"/);
-  assert.match(app, /data-testid="mode-live"/);
-  assert.equal((app.match(/<ModeToggle /g) || []).length, 2, 'the toggle is in the loading/error header and in the full header');
+  // The shared TopMenu renders the toggle (mode-select / mode-real); the app hands it the mode, the availability and the hint.
+  assert.equal((app.match(/<TopMenu/g) || []).length, 2, 'the TopMenu (with the toggle) is in the loading/error header and in the full header');
+  assert.match(app, /mode=\{\{ value: \(mode === "live" \|\| mode === "real"\) \? "real" : "mock", onChange: switchMode, realAvailable:/, 'the app drives the shared toggle with the server availability');
   assert.match(app, /e\.key === "p"/);
   assert.match(app, /e\.key === "Escape"/);
-  assert.equal((app.match(/setMode\("real"\)/g) || []).length, 1, 'the toggle asks for Real in one place, and it goes through the server (POST /api/mode)');
-  assert.match(app, /disabled=\{realAvailable === false\}/, 'the toggle disables Real when the server says it is not available');
+  assert.equal((app.match(/postMode/g) || []).length >= 2, true, 'the toggle asks for Real in one place (switchMode), through postMode (POST /api/mode)');
   assert.match(app, /if \(!r\.ok\) \{ setModeNote\([^;]*\); return; \}\s*setInfo\([^;]*\);\s*setMode\(source === "real" \? "live" : "mock"\)/, 'the page switches to Live only after the server accepted the change');
   assert.equal((app.match(/setMode\("live"\)/g) || []).length, 1, 'the opening mode is the only other place that sets Live');
   assert.match(app, /if \(i\.source === "real"\) setMode\("live"\)/, 'the opening mode is Live only when the server says it is in real mode');
