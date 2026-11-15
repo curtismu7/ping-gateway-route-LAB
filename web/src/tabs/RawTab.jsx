@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Inert } from "../lib/Inert.jsx";
+import { Json } from "../components/JsonPane.jsx";
+
+// The keys that matter in this lab's response bodies: which route answered and whether the token was active.
+const RAW_HOT = ["routed", "handler", "active"];
 
 export default function RawTab({ app }) {
   const { session } = app;
@@ -22,8 +26,8 @@ export default function RawTab({ app }) {
             <span className="muted small">traceparent <code data-testid="traceparent"><Inert text={m.traceparent} /></code></span>
           </div>
           <div className="cols">
-            <section className="card"><h3>Request</h3><Inert block text={m.request} testid="raw-request" /></section>
-            <section className="card"><h3>Response</h3><Inert block text={m.response} testid="raw-response" /></section>
+            <section className="card"><h3>Request</h3><Json value={m.request} label="Request" testId="raw-request" hot={RAW_HOT} /></section>
+            <section className="card"><h3>Response</h3><Json value={m.response} label="Response" testId="raw-response" hot={RAW_HOT} /></section>
           </div>
           {m.notes.length > 0 && <ul className="muted small">{m.notes.map((n, i) => <li key={i}><Inert text={n} /></li>)}</ul>}
         </>

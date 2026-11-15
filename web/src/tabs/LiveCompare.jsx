@@ -1,6 +1,9 @@
 import React from "react";
 import { Inert } from "../lib/Inert.jsx";
+import { Json } from "../components/JsonPane.jsx";
 
+// The keys that matter in a gateway answer body: the error and what the answer says about the route.
+const BODY_HOT = ["routed", "handler", "active"];
 const dash = <span className="muted">not applicable</span>;
 
 // One Live answer set beside the simulator's prediction. Everything from the gateway and everything typed is rendered as text (Inert).
@@ -30,7 +33,7 @@ export function LiveResult({ out, onLint }) {
           <tr><th scope="row">Route that answers</th><td>{predicted.route ? <Inert text={predicted.route} /> : "none (a bare 404)"}{predicted.shadowed?.length > 0 && <> (also matched: <Inert text={predicted.shadowed.join(", ")} />)</>}</td><td><span className="muted">a gateway does not say which route it used</span></td></tr>
           <tr><th scope="row">WWW-Authenticate</th><td>{predicted.challenge ? <Inert text={predicted.challenge} /> : dash}</td><td>{wa ? <Inert text={wa} testid="act-challenge" /> : dash}</td></tr>
           <tr><th scope="row">Content-Type</th><td>{dash}</td><td>{actual.headers["content-type"] ? <Inert text={actual.headers["content-type"]} /> : dash}</td></tr>
-          <tr><th scope="row">Body</th><td>{predicted.body ? <Inert block text={out.predictedBody} /> : "empty"}</td><td>{actual.body.binary ? `binary, ${actual.body.bytesRead} bytes, not shown` : actual.body.bytesRead === 0 ? "empty" : <Inert block text={actual.body.preview} testid="act-body" />}{actual.body.truncated && <p className="muted small">Preview cut: {actual.body.bytesRead} bytes read at most.</p>}</td></tr>
+          <tr><th scope="row">Body</th><td>{predicted.body ? <Json value={out.predictedBody} label="Predicted body" testId="pred-body" hot={BODY_HOT} /> : "empty"}</td><td>{actual.body.binary ? `binary, ${actual.body.bytesRead} bytes, not shown` : actual.body.bytesRead === 0 ? "empty" : <Json value={actual.body.preview} label="Actual body" testId="act-body" hot={BODY_HOT} />}{actual.body.truncated && <p className="muted small">Preview cut: {actual.body.bytesRead} bytes read at most.</p>}</td></tr>
           <tr><th scope="row">Other headers shown</th><td>{dash}</td><td>{shownHeaders.length ? shownHeaders.map(([k, v]) => <div key={k}><code><Inert text={`${k}: ${v}`} /></code></div>) : "none"}<p className="muted small">{actual.hiddenHeaders} more not on the allow-list (never shown, Set-Cookie among them).</p></td></tr>
         </tbody>
       </table>
