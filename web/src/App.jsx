@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import fs from "node:fs";
 import ShelfLink from "./components/ShelfLink.jsx";
+import VerifyMark from "./components/VerifyMark.jsx";
 import { getCatalog, getDiagram, getInfo, getRoutes, postMode, resetServer, runScenario } from "./lib/api.js";
 import { boxesFromDoc } from "./lib/diagram.js";
 import { fromRun } from "./lib/session.js";
@@ -171,6 +172,7 @@ function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme,
           >
             <span className="mode-toggle__chip" data-testid="mode">{(mode === "live" || mode === "real") ? `Mode: live (your gateway at ${info?.modes?.live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
             <ShelfLink />
+            <VerifyMark id="ping-gateway-route-lab" />
           </TopMenu>
         </div>
       </header>
