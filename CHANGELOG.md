@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Verification mark in the header: the shared `VerifyMark` (vendored from AI-DEMO-Standalone `shared/verify-mark`, byte for byte, pinned) shows this lab's Verified / In progress mark from the demo shelf, beside the Shelf link. It reads the same `GET /api/shelf` call the Shelf link makes, so it shows through the lab-proxy and nothing when the lab is opened on its own port, when the shelf has no mark for it, or when the shelf is unreachable.
+
 ## 0.5.0 (Live mode)
 An opt-in Live mode: the Request simulator can send the request you composed to ONE gateway on this machine and show what actually answered (status, an allow-list of response headers, a bounded body preview) beside what the simulator predicted, and whether the two agree. Mock stays the default and makes zero network calls.
 
