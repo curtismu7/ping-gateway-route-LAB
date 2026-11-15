@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { advanceClock, getClock, introspect, issueToken, revokeToken, setFault } from "../lib/api.js";
-import { Inert, pretty } from "../lib/Inert.jsx";
+import { Inert } from "../lib/Inert.jsx";
+import { Json } from "../components/JsonPane.jsx";
 
+// The keys that matter in an RFC 7662 answer here: is the token active, and how long does it last.
+const INTRO_HOT = ["active", "exp", "token_type"];
 const unix = (n) => (Number.isFinite(n) ? `${n} (${new Date(n * 1000).toISOString()})` : "-");
 
 export function IntrospectionView({ body, status }) {
   if (!body) return <p className="muted">Introspect a token to see the RFC 7662 answer.</p>;
-  if (status && status !== 200) return <p className="alert" role="alert" data-testid="intro-result">The mock authorization server answered {status}: <Inert text={pretty(body)} /></p>;
+  if (status && status !== 200) return (
+    <div data-testid="intro-result">
+      <p className="alert" role="alert">The mock authorization server answered {status}:</p>
+      <Json value={body} label="Introspection error" testId="intro-error" hot={INTRO_HOT} />
+    </div>
+  );
   return (
     <div data-testid="intro-result">
       <p className={`verdict ${body.active ? "ok" : "deny"}`} data-testid="intro-verdict">active: {String(body.active)}{body.active ? "" : " (an inactive token gets nothing else, by design)"}</p>
@@ -19,7 +27,7 @@ export function IntrospectionView({ body, status }) {
           <dt>token_type</dt><dd><Inert text={body.token_type} /></dd>
         </dl>
       )}
-      <details><summary>Raw JSON</summary><Inert block text={pretty(body)} /></details>
+      <details><summary>Raw JSON</summary><Json value={body} label="Introspection response" testId="intro-json" hot={INTRO_HOT} /></details>
     </div>
   );
 }

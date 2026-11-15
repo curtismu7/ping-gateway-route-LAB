@@ -324,7 +324,24 @@ describe("stories, raw, reset, persona", () => {
     await screen.findByTestId("handle-result");
     await tab(user, "Raw");
     expect(await screen.findByTestId("raw-request")).toHaveTextContent(/^GET \/mcp\//);
-    expect(screen.getByTestId("raw-response")).toHaveTextContent(/401 Unauthorized/);
+    // The response is a transcript with a JSON body: the headers stay text, the body gets its own Form | JSON pane.
+    expect(screen.getByTestId("raw-response-head")).toHaveTextContent(/401 Unauthorized/);
+    const body = screen.getByTestId("raw-response-box");
+    expect(within(body).getByRole("button", { name: "Form" })).toBeInTheDocument();
+    expect(within(body).getByRole("button", { name: "JSON" })).toBeInTheDocument();
+  });
+
+  it("an introspection answer is a Form | JSON pane, and the JSON view is the exact text", async () => {
+    const user = await open();
+    await tab(user, "Introspection");
+    await user.click(screen.getByRole("button", { name: "Issue token" }));
+    await user.click(within(await screen.findByTestId("token-list")).getByRole("button", { name: "Introspect" }));
+    const box = await screen.findByTestId("intro-json-box");
+    await user.click(within(box).getByRole("button", { name: "JSON" }));
+    expect(screen.getByTestId("intro-json")).toHaveTextContent(/"active": true/);
+    expect(box.querySelector(".jtok--hot")).not.toBeNull();
+    await user.click(within(box).getByRole("button", { name: "Form" }));
+    expect(box.querySelector(".json--form")).not.toBeNull();
   });
 
   it("Reset lab restores the 14 routes, forgets tokens and says so", async () => {

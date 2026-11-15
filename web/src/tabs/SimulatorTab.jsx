@@ -3,7 +3,8 @@ import { getLiveExperiments, handleRequest, matchRequest, sendLive } from "../li
 import { Experiments, LiveResult } from "./LiveCompare.jsx";
 import { buildRequest } from "../lib/request.js";
 import { fromHandle } from "../lib/session.js";
-import { Inert, pretty } from "../lib/Inert.jsx";
+import { Inert } from "../lib/Inert.jsx";
+import { Json } from "../components/JsonPane.jsx";
 
 const METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"];
 
@@ -133,7 +134,7 @@ export default function SimulatorTab({ app }) {
                   <dt>Status</dt><dd>{out.response.status}</dd>
                   {challenge && <><dt>WWW-Authenticate</dt><dd><Inert text={challenge} testid="challenge" /></dd></>}
                   {out.lint && <><dt>Lint</dt><dd>{out.lint.clean ? "clean" : `${out.lint.errors} error(s)`}, {out.lint.warnings} warning(s) <button type="button" className="compact" onClick={lintIt}>Open in linter</button></dd></>}
-                  {out.introspection && <><dt>Introspection</dt><dd><Inert block text={pretty(out.introspection)} /></dd></>}
+                  {out.introspection && <><dt>Introspection</dt><dd><Json value={out.introspection} label="Introspection" testId="sim-introspection" hot={["active", "status"]} /></dd></>}
                 </dl>
               )}
               {out.note && <p className="muted small"><Inert text={out.note} /></p>}
