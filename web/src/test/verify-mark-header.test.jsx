@@ -24,7 +24,7 @@ describe("verification mark in the header", () => {
     const restore = withShelf({ shelfUrl: "http://shelf.example", demos: [{ id: "other-lab", verification: mark("in-progress", "In progress") }, { id: "ping-gateway-route-lab", verification: mark("verified", "Verified", { note: "Every route checked on the mock" }) }] });
     try {
       render(<App />);
-      await screen.findByRole("tablist"); // the loaded header (the bare one shown while loading has no Shelf link)
+      await screen.findByTestId("reset-note"); // the loaded page (the bar shown while loading has no Shelf link)
       const bar = within(screen.getByTestId("top-menu"));
       expect(await bar.findByText("Verified")).toBeInTheDocument();
       expect(bar.getByRole("link", { name: "Shelf" })).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe("verification mark in the header", () => {
       const restore = withShelf(payload);
       try {
         const { unmount } = render(<App />);
-        await screen.findByRole("tablist"); // the loaded header (the bare one shown while loading has no Shelf link)
+        await screen.findByTestId("reset-note"); // the loaded page (the bar shown while loading has no Shelf link)
         const bar = within(screen.getByTestId("top-menu"));
         expect(await bar.findByRole("link", { name: "Shelf" })).toBeInTheDocument(); // the shelf answered, and still no badge
         expect(document.querySelector(".verify")).toBeNull();

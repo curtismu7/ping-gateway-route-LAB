@@ -100,7 +100,8 @@ export default function SimulatorTab({ app }) {
           {problems.length > 0 && <p className="alert" role="alert">Headers: <Inert text={problems.join("; ")} /></p>}
           <div className="actions">
             <button type="button" onClick={() => send("match")}>Match routes</button>
-            <button type="button" className="primary" onClick={() => send("handle")}>Send through handler</button>
+            {/* One primary per view state: in Live the real-gateway send below is the primary, so this one is plain there. */}
+            <button type="button" className={mode === "mock" ? "primary" : ""} onClick={() => send("handle")}>Send through handler</button>
           </div>
           {error && <p className="alert" role="alert" data-testid="sim-error"><Inert text={error} /></p>}
           {live && (
@@ -108,7 +109,7 @@ export default function SimulatorTab({ app }) {
               <h4>Real gateway (Live)</h4>
               <p className="small" data-admin-only>Sends this request to <strong><Inert text={liveTarget} /></strong> on this machine and sets its answer beside the simulator's prediction. No body and no cookie are sent. A token you type goes to the gateway and is never shown back. At most 10 sends per 30 seconds, one at a time.</p>
               <label className="check"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} data-testid="live-confirm" /> I confirm: send this request to the real gateway</label>
-              <div className="actions"><button type="button" className="primary" disabled={!confirm || liveBusy} onClick={sendReal} data-testid="live-send">{liveBusy ? "Waiting for the gateway..." : "Send to the real gateway and compare"}</button></div>
+              <div className="actions"><button type="button" className={mode === "live" ? "primary" : ""} disabled={!confirm || liveBusy} onClick={sendReal} data-testid="live-send">{liveBusy ? "Waiting for the gateway..." : "Send to the real gateway and compare"}</button></div>
               <Experiments list={experiments} onPick={pick} />
             </div>
           )}

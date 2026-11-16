@@ -15,17 +15,17 @@ async function open(hash = "") {
   window.location.hash = hash;
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByRole("tablist");
+  await screen.findByTestId("reset-note"); // the loaded page (the shell bar is there while loading too)
   await waitFor(() => expect(srv.calls.some((c) => c.path === "/api/routes")).toBe(true));
   return user;
 }
-const tab = (user, name) => user.click(screen.getByRole("tab", { name }));
+const tab = (user, name) => user.click(within(screen.getByRole("navigation", { name: "Lab sections" })).getByRole("link", { name }));
 const BANNER = /simulated evaluator, not real PingGateway/i;
 
 describe("shell", () => {
-  it("has the six tabs, the persona picker and the diagram loaded from the server", async () => {
+  it("has the six page pills, the persona picker and the diagram loaded from the server", async () => {
     await open();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Routes", "Request simulator", "WWW-Authenticate linter", "Introspection", "Diagram", "Raw"]);
+    expect(within(screen.getByRole("navigation", { name: "Lab sections" })).getAllByRole("link").map((t) => t.textContent)).toEqual(["Routes", "Request simulator", "WWW-Authenticate linter", "Introspection", "Diagram", "Raw"]);
     expect(screen.getByTestId("vertical-select")).toBeInTheDocument();
     expect(srv.calls.some((c) => c.path === "/api/diagram")).toBe(true);
   });
@@ -51,16 +51,47 @@ describe("shell", () => {
     globalThis.fetch = keep;
   });
 
-  it("arrow keys move between tabs; theme and present toggle document attributes", async () => {
+  it("arrow keys move between the page pills; theme and present toggle document attributes", async () => {
     const user = await open();
-    screen.getByRole("tab", { name: "Routes" }).focus();
+    screen.getByRole("link", { name: "Routes" }).focus();
     await user.keyboard("{ArrowRight}");
-    await waitFor(() => expect(screen.getByRole("tab", { name: "Request simulator" })).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(screen.getByRole("link", { name: "Request simulator" })).toHaveAttribute("aria-current", "page"));
+    expect(screen.getByRole("link", { name: "Request simulator" })).toHaveFocus();
     await user.selectOptions(screen.getByTestId("theme-select"), "light");
     expect(document.documentElement.dataset.theme).toBe("light");
     await user.click(screen.getByTestId("presenter"));
     await user.click(screen.getByTestId("presenter"));
     expect(document.documentElement.dataset.present).toBeUndefined();
+  });
+
+  it("shell bar first (brand h1, Mock badge, current page pill, TopMenu), then <main> with the banner first; one h1 and one main", async () => {
+    const user = await open();
+    const bar = document.querySelector("header.shell-bar");
+    expect(document.querySelector("header")).toBe(bar);
+    expect(bar.previousElementSibling).toHaveClass("skip"); // only the visually hidden skip link comes before the bar
+    expect(bar.querySelector(".shell-brand h1")).toHaveTextContent("Ping Gateway Route LAB");
+    expect(screen.getByTestId("mode-badge")).toHaveTextContent("Mock");
+    expect(bar.querySelector('.shell-nav a[aria-current="page"]')).toHaveTextContent("Routes");
+    expect(bar.querySelector("[data-testid=top-menu]")).toHaveClass("shell-right");
+    expect(bar.nextElementSibling.tagName).toBe("MAIN");
+    expect(document.querySelector("main").firstElementChild).toBe(screen.getByTestId("banner"));
+    expect(document.querySelectorAll("h1")).toHaveLength(1);
+    expect(document.querySelectorAll("main")).toHaveLength(1);
+    await tab(user, "Diagram");
+    await waitFor(() => expect(bar.querySelector('.shell-nav a[aria-current="page"]')).toHaveTextContent("Diagram"));
+    expect(bar.querySelectorAll('.shell-nav a[aria-current="page"]')).toHaveLength(1);
+  });
+
+  it("the server-down state keeps the same order: shell bar, then <main> with the banner first and the alert right below", async () => {
+    const keep = globalThis.fetch;
+    globalThis.fetch = () => Promise.reject(new Error("down"));
+    render(<App />);
+    const alert = await screen.findByRole("alert");
+    expect(document.querySelector("header.shell-bar").nextElementSibling).toBe(document.querySelector("main"));
+    expect(document.querySelector("main").firstElementChild).toBe(screen.getByTestId("banner"));
+    expect(screen.getByTestId("banner").nextElementSibling).toBe(alert);
+    expect(document.querySelectorAll("h1")).toHaveLength(1);
+    globalThis.fetch = keep;
   });
 
   it("only calls its own origin paths under /api/", async () => {

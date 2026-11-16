@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import fs from "node:fs";
 import ShelfLink from "./components/ShelfLink.jsx";
 import VerifyMark from "./components/VerifyMark.jsx";
@@ -66,39 +66,72 @@ export default function App() {
     return () => window.removeEventListener("keydown", on);
   }, []);
 
-  // The banner is part of the shell and is never conditional: not on load, not on error, not in presenter mode.
-  const shell = (body, header) => (
+  // Arrow keys, Home and End move between the page pills in the shell bar (each pill is also a plain link).
+  const navRefs = useRef({});
+  const onNavKey = (e) => {
+    const i = TABS.findIndex(([id]) => id === tab);
+    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    const [id] = TABS[(to + TABS.length) % TABS.length];
+    window.location.hash = `#/${id}`; navRefs.current[id]?.focus();
+  };
+  // The loaded page's own actions (persona picker, Reset) live in Shell; the shell bar calls them through this handle.
+  const shellActions = useRef(null);
+  const loaded = !loadError && !!catalog && !!diagram;
+  const live = mode === "live" || mode === "real";
+
+  // One shell for every state (loading, server down, loaded): shell bar first, then <main> with the banner as its first child.
+  // The banner is never conditional: not on load, not on error, not in presenter mode.
+  return (
     <>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
-      {mode === "live" && info?.modes?.live?.target
-        ? <div className="banner" role="note" data-state="live" data-testid="banner"><strong>Live mode. Predictions and every other tab are a simulated evaluator, not real PingGateway.</strong> Only the Send to the real gateway button on the Request simulator tab reaches a gateway: yours, at {info.modes.live.target} on this machine, one request at a time. Tokens you type are sent but never shown back.</div>
-        : <div className="banner" role="note" data-state="mock" data-testid="banner"><strong>Mock mode. Simulated evaluator, not real PingGateway.</strong> A small hand-written interpreter, a mock authorization server and a linter, all in this process. No gateway, no tenant, no outbound network.</div>}
-      {header}
-      {body}
+      <header className="shell-bar">
+        <span className="shell-brand">
+          <span className="shell-logo" aria-hidden="true">IG</span>
+          <h1>Ping Gateway Route LAB</h1>
+          <span className={`shell-badge${live ? " shell-badge--real" : ""}`} data-testid="mode-badge">{live ? "Live" : "Mock"}</span>
+        </span>
+        <nav className="shell-nav" aria-label="Lab sections" onKeyDown={onNavKey}>
+          {TABS.map(([id, label]) => (
+            <a key={id} id={`tab-${id}`} ref={(el) => { navRefs.current[id] = el; }} href={`#/${id}`} aria-current={id === tab ? "page" : undefined}>{label}</a>
+          ))}
+        </nav>
+        <TopMenu
+          mode={{ value: (mode === "live" || mode === "real") ? "real" : "mock", onChange: switchMode, realAvailable: info ? info.realAvailable !== false : null, realHint: info?.realReason || LIVE_FALLBACK }}
+          vertical={loaded ? { value: catalog.vertical, onChange: (id) => shellActions.current?.pickVertical(id), options: catalog.verticals.map((v) => v.id) } : undefined}
+          theme={{ value: theme, onChange: setThemePersist }}
+          fontSize={{ value: fontStep, onChange: setFontStep }}
+          present={{ active: present, onToggle: () => setPresent(!present) }}
+          shelfUrl={loaded ? undefined : "https://local.ping-devops.com:8443/"}
+          help={{ href: "https://github.com/curtismu7/ping-gateway-route-LAB#readme" }}
+          version={VERSION}
+          onReset={loaded ? () => shellActions.current?.resetLab() : undefined}
+        >
+          {loaded && (
+            <>
+              <span className="mode-toggle__chip" data-testid="mode">{live ? `Mode: live (your gateway at ${info?.modes?.live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
+              <ShelfLink />
+              <VerifyMark id="ping-gateway-route-lab" />
+            </>
+          )}
+        </TopMenu>
+      </header>
+      <main className="page" id="main" tabIndex={-1}>
+        {mode === "live" && info?.modes?.live?.target
+          ? <div className="banner" role="note" data-state="live" data-testid="banner"><strong>Live mode. Predictions and every other tab are a simulated evaluator, not real PingGateway.</strong> Only the Send to the real gateway button on the Request simulator tab reaches a gateway: yours, at {info.modes.live.target} on this machine, one request at a time. Tokens you type are sent but never shown back.</div>
+          : <div className="banner" role="note" data-state="mock" data-testid="banner"><strong>Mock mode. Simulated evaluator, not real PingGateway.</strong> A small hand-written interpreter, a mock authorization server and a linter, all in this process. No gateway, no tenant, no outbound network.</div>}
+        {loadError
+          ? <p className="alert" role="alert">Could not reach the lab server: {loadError}</p>
+          : !loaded
+            ? <p className="muted" role="status">Loading the lab...</p>
+            : <Shell actions={shellActions} mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} present={present} modeNote={modeNote} />}
+      </main>
     </>
   );
-  const bareHeader = (
-    <header className="top">
-      <h1><span className="mark" aria-hidden="true">IG</span> Ping Gateway Route LAB</h1>
-      <div className="tools-right">
-            <TopMenu
-              mode={{ value: (mode === "live" || mode === "real") ? "real" : "mock", onChange: switchMode, realAvailable: info ? info.realAvailable !== false : null, realHint: info?.realReason || LIVE_FALLBACK }}
-              theme={{ value: theme, onChange: setThemePersist }}
-              fontSize={{ value: fontStep, onChange: setFontStep }}
-              present={{ active: present, onToggle: () => setPresent(!present) }}
-              shelfUrl="https://local.ping-devops.com:8443/"
-              help={{ href: "https://github.com/curtismu7/ping-gateway-route-LAB#readme" }}
-              version={VERSION}
-            />
-          </div>
-    </header>
-  );
-  if (loadError) return shell(<main className="page" id="main" tabIndex={-1}><p className="alert" role="alert">Could not reach the lab server: {loadError}</p></main>, bareHeader);
-  if (!catalog || !diagram) return shell(<main className="page" id="main" tabIndex={-1}><p className="muted" role="status">Loading the lab...</p></main>, bareHeader);
-  return shell(<Shell mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} setTheme={setTheme} present={present} setPresent={setPresent} switchMode={switchMode} setModeNote={setModeNote} setThemePersist={setThemePersist} setFontStep={setFontStep} fontStep={fontStep} modeNote={modeNote} />);
 }
 
-function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme, present, setPresent, switchMode, setModeNote, setThemePersist, setFontStep, fontStep, modeNote }) {
+function Shell({ actions, mode, info, catalog, setCatalog, diagram, tab, theme, present, modeNote }) {
   const [routes, setRoutes] = useState({ routes: [], rejected: [] });
   const [session, setSession] = useState(null);
   const [cursor, setCursor] = useState(-1);
@@ -112,7 +145,6 @@ function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme,
   const cast = useMemo(() => catalog.verticals.find((v) => v.id === catalog.vertical)?.cast || {}, [catalog]);
   const [req, setReq] = useState(() => defaultRequest(cast));
   const [resetNote, setResetNote] = useState("");
-  const tabRefs = useRef({});
 
   const refreshRoutes = useCallback(() => getRoutes().then(setRoutes).catch(() => {}), []);
   useEffect(() => { refreshRoutes(); }, [refreshRoutes]);
@@ -141,52 +173,19 @@ function Shell({ mode, info, catalog, setCatalog, diagram, tab, theme, setTheme,
     } catch (e) { setResetNote(`Reset failed: ${e.message}`); }
   }, [resetAll, refreshRoutes, cast]);
 
-  const togglePresent = () => setPresent(!present);
+  useImperativeHandle(actions, () => ({ pickVertical, resetLab }), [pickVertical, resetLab]);
   const go = (id) => { window.location.hash = `#/${id}`; };
-  const onTabKey = (e) => {
-    const i = TABS.findIndex(([id]) => id === tab);
-    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
-    if (to === undefined) return;
-    e.preventDefault();
-    const [id] = TABS[(to + TABS.length) % TABS.length];
-    go(id); tabRefs.current[id]?.focus();
-  };
 
   const app = { mode, liveTarget: info?.modes?.live?.target || null, catalog, diagram, cast, routes, refreshRoutes, session, showSession, scenarioId, setScenarioId, doRun, running, runError, resetAll, cursor, setCursor, boxes, setBoxes, theme, present, go, tokens, setTokens, lintSeed, setLintSeed, req, setReq };
   const Panel = { routes: RoutesTab, simulator: SimulatorTab, lint: LintTab, introspection: IntrospectionTab, diagram: DiagramTab, raw: RawTab }[tab];
 
+  // Rendered inside <main>, right below the banner.
   return (
     <>
-      <header className="top">
-        <h1><span className="mark" aria-hidden="true">IG</span> Ping Gateway Route LAB</h1>
-        <div className="tools-right">
-          <TopMenu
-            mode={{ value: (mode === "live" || mode === "real") ? "real" : "mock", onChange: switchMode, realAvailable: info ? info.realAvailable !== false : null, realHint: info?.realReason || LIVE_FALLBACK }}
-            vertical={{ value: catalog.vertical, onChange: pickVertical, options: catalog.verticals.map((v) => v.id) }}
-            theme={{ value: theme, onChange: setThemePersist }}
-            fontSize={{ value: fontStep, onChange: setFontStep }}
-            present={{ active: present, onToggle: togglePresent }}
-            help={{ href: "https://github.com/curtismu7/ping-gateway-route-LAB#readme" }}
-            version={VERSION}
-            onReset={resetLab}
-          >
-            <span className="mode-toggle__chip" data-testid="mode">{(mode === "live" || mode === "real") ? `Mode: live (your gateway at ${info?.modes?.live?.target}; predictions simulated)` : "Mode: mock (simulated, in this process)"}</span>
-            <ShelfLink />
-            <VerifyMark id="ping-gateway-route-lab" />
-          </TopMenu>
-        </div>
-      </header>
       <p className="muted note" role="status" data-testid="reset-note">{resetNote}</p>
       {modeNote && <p className="muted note" role="status" data-testid="mode-note">{modeNote}</p>}
-      <div className="tabbar" role="tablist" aria-label="Lab sections" onKeyDown={onTabKey}>
-        {TABS.map(([id, label]) => (
-          <button key={id} id={`tab-${id}`} ref={(el) => { tabRefs.current[id] = el; }} type="button" role="tab" aria-selected={id === tab} aria-controls="main" tabIndex={id === tab ? 0 : -1} className="tab" onClick={() => go(id)}>{label}</button>
-        ))}
-      </div>
-      <main className="page" id="main" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
-        <p className="lede" data-admin-only>{fill("{{client}} calls {{host}} through a gateway. Which route answers, and what does the 401 look like to the client?", cast)}</p>
-        <Panel app={app} />
-      </main>
+      <p className="lede" data-admin-only>{fill("{{client}} calls {{host}} through a gateway. Which route answers, and what does the 401 look like to the client?", cast)}</p>
+      <Panel app={app} />
     </>
   );
 }

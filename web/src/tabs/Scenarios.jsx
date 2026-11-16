@@ -19,7 +19,7 @@ export function ScenarioBar({ app }) {
             {catalog.scenarios.map((s) => <option key={s.id} value={s.id}>{s.id} · {KIND[s.kind] || s.kind} · {s.title}</option>)}
           </select>
         </label>
-        <button type="button" className="primary" onClick={doRun} disabled={running}>{running ? "Running..." : "Run story"}</button>
+        <button type="button" onClick={doRun} disabled={running}>{running ? "Running..." : "Run story"}</button>
         <button type="button" onClick={resetAll}>Reset story</button>
       </div>
       {picked && <p className="muted small"><Inert text={fill(picked.takeaway, cast)} /></p>}
