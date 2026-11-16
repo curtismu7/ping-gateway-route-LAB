@@ -24,11 +24,11 @@ async function open(hash = "") {
   window.location.hash = hash;
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByRole("tablist");
+  await screen.findByTestId("reset-note"); // the loaded page (the shell bar is there while loading too)
   await waitFor(() => expect(srv.calls.some((c) => c.path === "/api/info")).toBe(true));
   return user;
 }
-const tab = (user, name) => user.click(screen.getByRole("tab", { name }));
+const tab = (user, name) => user.click(within(screen.getByRole("navigation", { name: "Lab sections" })).getByRole("link", { name }));
 async function goLive(user) {
   await waitFor(() => expect(screen.getByTestId("mode-select").querySelector('option[value="real"]').disabled).toBe(false));
   await user.selectOptions(screen.getByTestId("mode-select"), "real");
@@ -45,6 +45,7 @@ describe("Live mode in the page", () => {
     for (const [, label] of TABS) {
       await tab(user, label);
       expect(screen.getByTestId("mode-select")).toHaveValue("real");
+      expect(screen.getByTestId("mode-badge")).toHaveTextContent("Live");
       expect(screen.getByTestId("mode")).toHaveTextContent(new RegExp(`Mode: live \\(your gateway at ${gw.origin.replace(/[.]/g, "\\.")}`));
       expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
       expect(screen.getByTestId("banner")).toHaveTextContent(/Live mode/);

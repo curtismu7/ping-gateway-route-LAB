@@ -202,7 +202,7 @@ test('web is the real UI (not a placeholder); package workspaces are server and 
 test('every page has the Mock | Live toggle (the shared TopMenu), Live switches on only when the server says it is available, and presenter mode is on P and Esc', () => {
   const app = read('web/src/App.jsx');
   // The shared TopMenu renders the toggle (mode-select / mode-real); the app hands it the mode, the availability and the hint.
-  assert.equal((app.match(/<TopMenu/g) || []).length, 2, 'the TopMenu (with the toggle) is in the loading/error header and in the full header');
+  assert.equal((app.match(/<TopMenu/g) || []).length, 1, 'one TopMenu (with the toggle) in the one shell bar, shown while loading, on error and when loaded');
   assert.match(app, /mode=\{\{ value: \(mode === "live" \|\| mode === "real"\) \? "real" : "mock", onChange: switchMode, realAvailable:/, 'the app drives the shared toggle with the server availability');
   assert.match(app, /e\.key === "p"/);
   assert.match(app, /e\.key === "Escape"/);
