@@ -9,7 +9,7 @@ const SENTINEL = ['SENTINEL', 'qZ7xK2mWp9', 'RvT4nB8cLd', 'F6'].join('');
 const SHORT = ['Zk9xT7', 'mP2vL'].join('');
 const MOCK = `mock-tok-${'0123456789abcdef01234567'}`;
 const door = { url: '/mcp/x', headers: { Host: 'mcp.gw-lab.example' } };
-const liveOn = () => createLive({ env: { ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' } }); // never contacted here
+const liveOn = () => createLive({ env: { ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' } }); // never contacted here
 const json = (r) => JSON.parse(r.text);
 const withAuth = (value, extra = {}) => ({ ...door, headers: { ...door.headers, Authorization: value, ...extra } });
 
