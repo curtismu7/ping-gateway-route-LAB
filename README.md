@@ -53,7 +53,7 @@ All standalone apps read one optional settings file, `~/Development/.env` (mode 
 | --- | --- |
 | `ROUTE_LAB_MODE` | Optional. The mode the page opens in: `mock` (default) or `live`. `live` opens in Live only when Live is also on (the two keys below); otherwise the page opens in Mock and says why. Anything else stops the start. |
 | `ROUTE_LAB_LIVE` | Optional. Exactly `1` turns Live on. Anything else, or unset, leaves it off. |
-| `ROUTE_LAB_LIVE_TARGET` | Needed for Live. One origin on this machine, for example `https://localhost:3036`: `localhost`, `127.x.x.x` or `[::1]`, https (or http, because it is loopback), no path, query or user name. There is no override for a non-loopback target. |
+| `ROUTE_LAB_LIVE_TARGET` | Needed for Live. One origin on this machine, `http://127.0.0.1:7809` for the PingGateway that `ping-shared` runs (see "Live target" below), or the origin of your own local gateway: `localhost`, `127.x.x.x` or `[::1]`, https (or http, because it is loopback), no path, query or user name. There is no override for a non-loopback target, and no default: Live stays off until you set it. |
 
 Per-run settings are set in the shell, not in the shared file: `PORT` (5050-5099), `LAB_BIND` (opt in to a non-loopback bind; the container sets it), `VITE_PORT` and `HOST_PORT` (below).
 
@@ -80,6 +80,19 @@ The header of every page, including the loading and error states, has a **Mock |
 
 - **Mock** (default) works fully offline and makes zero network calls.
 - **Live** is off unless you set `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` in the shared settings file and restart. While it is off, pressing Live shows the reason next to the switch and changes nothing (`GET /api/info` carries the same message for scripts). While it is on, pressing Live changes the banner and the mode label and adds the send button to the Request simulator tab; pressing Mock goes back.
+
+### Live target: the shared gateway, and what is not verified
+
+The standalone target is the minimal PingGateway from `ping-shared` (`AI-DEMO-Standalone/shared/ping-shared`, started with `scripts/ping-shared.sh up pinggateway`). It publishes on `127.0.0.1:7809` over plain http (`PINGGATEWAY_HOST_PORT` moves the host port), so a settings file for it reads:
+
+```
+ROUTE_LAB_LIVE=1
+ROUTE_LAB_LIVE_TARGET=http://127.0.0.1:7809
+```
+
+Run the lab on your machine for Live (`npm start`); the Docker container keeps Live off and cannot see the host's loopback. Any other local PingGateway works the same way if you point `ROUTE_LAB_LIVE_TARGET` at its origin.
+
+**UNVERIFIED: this lab has not been run against ping-shared's gateway.** The tests only use a fake gateway on loopback. The recorded real-gateway result in `docs/live-checks.md` (2026-11-01) was a different local PingGateway reached over https, not ping-shared's. The ping-shared gateway is minimal: it answers `/health` and `/mcp` (with a bearer-token check) and returns 404 for every other path, and it has none of the other routes this lab's simulator models. So the simulator's route predictions (`mcp-main-primary`, `oauth-bootstrap`, ...) will often disagree with it, and the Live experiments there are untested.
 
 What a Live send does, and the guards around it:
 
@@ -148,7 +161,7 @@ Some tests exercise refusals on purpose (a 400 or 404 from the API); a browser c
 - **`npm test` or `npm start` says Node is too old:** this app needs Node 26 or newer (`node -v`).
 - **The page says "Could not reach the lab server":** start the server (`npm start`), and open the same port it printed.
 - **The page is blank or old after a change:** run `npm run build` again; the server serves `web/dist`.
-- **Pressing Live only shows a message:** Live is off. The message beside the switch says why: when you run the lab on your machine (`npm start`), set `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` in the shared settings file and restart. In the Docker container Live always stays off.
+- **Pressing Live only shows a message:** Live is off. The message beside the switch says why: when you run the lab on your machine (`npm start`), set `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` (for example `http://127.0.0.1:7809`, ping-shared's gateway) in the shared settings file and restart. In the Docker container Live always stays off.
 - **A Live send says "connection refused" or "timeout":** nothing answers at the target. Check the gateway is running and that the target is its origin; the doctor does not contact it.
 - **A Live send says the TLS handshake failed:** the scheme is probably wrong (https against a plain-http port, or the reverse).
 

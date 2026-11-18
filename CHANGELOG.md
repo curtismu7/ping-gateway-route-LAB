@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Live example and documented target are ping-shared's gateway on port 7809, not a gateway from another project (README, `.env.example`, refusal messages, tests). Still opt-in with no default; still UNVERIFIED against a live ping-shared gateway. Vendored the missing `ReleaseNotes.jsx` that `TopMenu.jsx` imports.
 - Verification mark in the header: the shared `VerifyMark` (vendored from AI-DEMO-Standalone `shared/verify-mark`, byte for byte, pinned) shows this lab's Verified / In progress mark from the demo shelf, beside the Shelf link. It reads the same `GET /api/shelf` call the Shelf link makes, so it shows through the lab-proxy and nothing when the lab is opened on its own port, when the shelf has no mark for it, or when the shelf is unreachable.
 
 ## 0.5.0 (Live mode)

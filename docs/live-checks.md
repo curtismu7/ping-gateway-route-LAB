@@ -20,6 +20,8 @@ Item numbers are those of the UNVERIFIED list in `docs/safety.md`.
 
 ### Recorded result: 2026-11-01, one local PingGateway
 
+This is a different gateway from ping-shared's minimal one (see "Live target" in the README). Nothing is recorded against ping-shared's gateway yet.
+
 PingGateway 2026.6.0 (build 20260629), a local container, HTTPS with a self-signed certificate, reached on its loopback port from the lab host-run in Live mode. Ten requests in total went to it: these five through the lab, and the same five again with `curl -sk --path-as-is` as an independent check (curl agreed on every status, header shape and body). The `Host` header was the gateway's own `localhost:<port>`. The seed route table was unchanged, so it is a scrubbed copy of this deployment's routes, not the same table.
 
 | Id | Predicted (simulator) | Actual (real gateway) | Agree |

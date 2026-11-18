@@ -10,7 +10,7 @@ import net from 'node:net';
 import dns from 'node:dns';
 
 export const TARGET_ERRORS = Object.freeze({
-  missing: 'ROUTE_LAB_LIVE_TARGET is not set. Set it to the origin of your local gateway, for example https://localhost:3036.',
+  missing: 'ROUTE_LAB_LIVE_TARGET is not set. Set it to the origin of your local gateway, for example http://127.0.0.1:7809 (the ping-shared gateway).',
   too_long: 'ROUTE_LAB_LIVE_TARGET is too long (200 characters at most).',
   syntax: 'ROUTE_LAB_LIVE_TARGET is not a valid URL: write it as https://localhost:PORT (an origin only).',
   scheme: 'ROUTE_LAB_LIVE_TARGET must start with https:// or http:// (http only because the host is loopback).',

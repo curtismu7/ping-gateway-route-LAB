@@ -9,20 +9,20 @@ test('loopback addresses: 127/8, ::1 and IPv4-mapped 127/8 only; 0.0.0.0, privat
 });
 
 test('the target must be one loopback origin: https or loopback http, no userinfo, no path, query or fragment', () => {
-  const good = { 'https://localhost:3036': 'https://localhost:3036', 'https://localhost:3036/': 'https://localhost:3036', 'http://127.0.0.1:9': 'http://127.0.0.1:9', 'https://127.7.7.7:3036': 'https://127.7.7.7:3036', 'https://[::1]:3036': 'https://[::1]:3036', 'https://LOCALHOST:8443': 'https://localhost:8443' };
+  const good = { 'https://localhost:7809': 'https://localhost:7809', 'https://localhost:7809/': 'https://localhost:7809', 'http://127.0.0.1:9': 'http://127.0.0.1:9', 'https://127.7.7.7:7809': 'https://127.7.7.7:7809', 'https://[::1]:7809': 'https://[::1]:7809', 'https://LOCALHOST:8443': 'https://localhost:8443' };
   for (const [raw, origin] of Object.entries(good)) { const r = parseTarget(raw); assert.equal(r.ok, true, raw); assert.equal(r.target.origin, origin, raw); }
   const bad = {
-    missing: [undefined, '', '   '], syntax: ['not a url', 'https://', 'https://localhost:3036 ', `https://local${'\\'}host:1`, 'https://localhost:3036\n'],
-    scheme: ['ftp://localhost:3036', 'ws://localhost:3036', 'file:///etc/passwd', 'javascript:alert(1)'],
-    userinfo: ['https://user:pw@localhost:3036', 'https://user@localhost:3036'],
-    not_origin: ['https://localhost:3036/mcp', 'https://localhost:3036/?x=1', 'https://localhost:3036#frag', 'https://localhost:3036?', 'https://localhost:3036#'],
-    not_loopback: ['https://example.com', 'https://gateway.example:3036', 'https://10.0.0.5:3036', 'https://192.168.0.2:3036', 'https://0.0.0.0:3036', 'https://[::]:3036', 'https://[::ffff:10.0.0.1]:3036', 'https://[::ffff:0:0]:3036',
-      'https://[64:ff9b::7f00:1]:3036', 'https://[2002:7f00:1::]:3036', 'https://localhost.example.com:3036', `https://foo.${'localhost'}:3036`, 'https://localhost.:3036', 'https://127.0.0.1.example:3036', 'https://8.8.8.8', 'https://[fe80::1]:3036'],
+    missing: [undefined, '', '   '], syntax: ['not a url', 'https://', 'https://localhost:7809 ', `https://local${'\\'}host:1`, 'https://localhost:7809\n'],
+    scheme: ['ftp://localhost:7809', 'ws://localhost:7809', 'file:///etc/passwd', 'javascript:alert(1)'],
+    userinfo: ['https://user:pw@localhost:7809', 'https://user@localhost:7809'],
+    not_origin: ['https://localhost:7809/mcp', 'https://localhost:7809/?x=1', 'https://localhost:7809#frag', 'https://localhost:7809?', 'https://localhost:7809#'],
+    not_loopback: ['https://example.com', 'https://gateway.example:7809', 'https://10.0.0.5:7809', 'https://192.168.0.2:7809', 'https://0.0.0.0:7809', 'https://[::]:7809', 'https://[::ffff:10.0.0.1]:7809', 'https://[::ffff:0:0]:7809',
+      'https://[64:ff9b::7f00:1]:7809', 'https://[2002:7f00:1::]:7809', 'https://localhost.example.com:7809', `https://foo.${'localhost'}:7809`, 'https://localhost.:7809', 'https://127.0.0.1.example:7809', 'https://8.8.8.8', 'https://[fe80::1]:7809'],
     port: ['https://localhost:5050', 'https://localhost:5099', 'https://localhost:0', 'https://localhost:65536'],
-    too_long: [`https://localhost:3036/${'a'.repeat(300)}`],
+    too_long: [`https://localhost:7809/${'a'.repeat(300)}`],
   };
   for (const [code, list] of Object.entries(bad)) for (const raw of list) { const r = parseTarget(raw); assert.equal(r.ok, false, `${code}: ${String(raw)}`); }
-  assert.equal(parseTarget('https://localhost:3036/mcp').code, 'not_origin');
+  assert.equal(parseTarget('https://localhost:7809/mcp').code, 'not_origin');
   assert.equal(parseTarget('https://example.com').code, 'not_loopback');
   assert.equal(parseTarget('https://localhost:5050').code, 'port');
 });
@@ -37,7 +37,7 @@ test('the URL parser\'s own spellings of loopback are judged by the address they
 });
 
 test('error text never echoes the configured value', () => {
-  for (const raw of ['https://user:hunter2hunter2@localhost:3036', 'https://secret-host.example:3036/path?token=abc123abc123', 'https://hunter2hunter2.example']) {
+  for (const raw of ['https://user:hunter2hunter2@localhost:7809', 'https://secret-host.example:7809/path?token=abc123abc123', 'https://hunter2hunter2.example']) {
     const r = parseTarget(raw); assert.equal(r.ok, false);
     assert.ok(!/hunter2|secret-host|abc123/.test(r.message), r.message);
   }
@@ -45,8 +45,8 @@ test('error text never echoes the configured value', () => {
 
 test('resolveTarget: a literal needs no lookup; a name must resolve to loopback ONLY, on every call (a rebinding answer is refused)', async () => {
   const noLookup = () => { throw new Error('lookup must not be called'); };
-  assert.deepEqual(await resolveTarget(parseTarget('https://127.0.0.1:3036').target, { lookup: noLookup }), { ok: true, addresses: ['127.0.0.1'] });
-  const t = parseTarget('https://localhost:3036').target;
+  assert.deepEqual(await resolveTarget(parseTarget('https://127.0.0.1:7809').target, { lookup: noLookup }), { ok: true, addresses: ['127.0.0.1'] });
+  const t = parseTarget('https://localhost:7809').target;
   assert.deepEqual(await resolveTarget(t, { lookup: async () => [{ address: '::1', family: 6 }, { address: '127.0.0.1', family: 4 }] }), { ok: true, addresses: ['::1', '127.0.0.1'] });
   let calls = 0;
   const flipping = async () => (++calls === 1 ? [{ address: '127.0.0.1', family: 4 }] : [{ address: '10.1.2.3', family: 4 }]);

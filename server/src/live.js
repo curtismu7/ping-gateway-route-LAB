@@ -15,7 +15,7 @@ import { lintWwwAuthenticate } from './wwwauth.js';
 import { mask, preview } from './liveSanitize.js';
 import { activePermits, installNetguard, withPermit } from './netguard.js';
 
-export const LIVE_OFF = 'Live is off. It is opt-in and host-run: when you start the lab on your machine (npm start), set ROUTE_LAB_LIVE=1 and ROUTE_LAB_LIVE_TARGET (your local gateway, for example https://localhost:3036) in the shared settings file ~/Development/.env, then restart. In the Docker container Live always stays off. The page stays in Mock and everything on screen is simulated.';
+export const LIVE_OFF = 'Live is off. It is opt-in and host-run: when you start the lab on your machine (npm start), set ROUTE_LAB_LIVE=1 and ROUTE_LAB_LIVE_TARGET (your local gateway, for example http://127.0.0.1:7809 (the ping-shared gateway)) in the shared settings file ~/Development/.env, then restart. In the Docker container Live always stays off. The page stays in Mock and everything on screen is simulated.';
 export const LIVE_BAD_FLAG = 'ROUTE_LAB_LIVE must be exactly 1 to turn Live on. The page stays in Mock and everything on screen is simulated.';
 export const LIVE_BIND = 'Live is refused because the server is bound beyond loopback outside the loopback-published container. The page stays in Mock.';
 
@@ -96,9 +96,9 @@ export function createLive({ env = process.env, now = Date.now, lookup, timeoutM
 // A self-test for the doctor: the guards refuse what they must, without opening a socket (the netguard throws before any connect).
 export async function liveGuardsSelfTest() {
   const problems = [];
-  const refusedTargets = ['https://example.com', 'https://192.0.2.5:3036', 'https://0.0.0.0:3036', 'https://[::ffff:192.0.2.5]:3036', 'https://[64:ff9b::7f00:1]:3036', 'https://user:pw@localhost:3036', 'https://localhost:3036/x', 'https://localhost:5050'];
+  const refusedTargets = ['https://example.com', 'https://192.0.2.5:7809', 'https://0.0.0.0:7809', 'https://[::ffff:192.0.2.5]:7809', 'https://[64:ff9b::7f00:1]:7809', 'https://user:pw@localhost:7809', 'https://localhost:7809/x', 'https://localhost:5050'];
   for (const t of refusedTargets) if (parseTarget(t).ok) problems.push('a non-loopback or malformed target was accepted');
-  if (!parseTarget('https://localhost:3036').ok || !parseTarget('http://127.0.0.1:3036').ok) problems.push('a loopback target was refused');
+  if (!parseTarget('https://localhost:7809').ok || !parseTarget('http://127.0.0.1:7809').ok) problems.push('a loopback target was refused');
   for (const bad of [{ url: '/x', headers: { Cookie: 'a=b' } }, { url: 'http://example.com/' }, { method: 'DELETE', url: '/x' }, { url: '/x', headers: { Authorization: 'Basic abc' } }]) if (validateLiveRequest(bad).ok) problems.push('the request allow-list accepted something it must refuse');
   if (/eyJ/.test(mask(`token ${['eyJhbGciOiJSUzI1NiJ9', 'eyJzdWIiOiJ4eXoifQ', 'c2lnbmF0dXJl'].join('.')}`))) problems.push('a JWT was not masked');
   const guard = installNetguard();

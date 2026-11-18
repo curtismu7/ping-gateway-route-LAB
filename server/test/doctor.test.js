@@ -28,8 +28,8 @@ test('doctor reports the opening mode and the Live state: off by default, refuse
   const off = await find({}, 'live'); assert.equal(off.level, 'pass'); assert.match(off.detail, /Live is off/);
   const asked = await find({ ROUTE_LAB_MODE: 'live' }, 'mode'); assert.equal(asked.level, 'pass'); assert.match(asked.detail, /refused, so the page opens in Mock/);
   const bad = await find({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://example.com' }, 'live'); assert.equal(bad.level, 'info'); assert.match(bad.detail, /must be on this machine/); assert.ok(!bad.detail.includes('example.com'));
-  const on = await find({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' }, 'live'); assert.equal(on.level, 'pass'); assert.match(on.detail, /does not contact it/);
-  assert.equal((await find({ ROUTE_LAB_MODE: 'live', ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' }, 'mode')).detail, 'live is the opening mode');
+  const on = await find({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' }, 'live'); assert.equal(on.level, 'pass'); assert.match(on.detail, /does not contact it/);
+  assert.equal((await find({ ROUTE_LAB_MODE: 'live', ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' }, 'mode')).detail, 'live is the opening mode');
   assert.equal((await find({ ROUTE_LAB_MODE: 'hosted' }, 'mode')).level, 'fail');
   const guards = await find({}, 'live-guards'); assert.equal(guards.level, 'pass');
 });
