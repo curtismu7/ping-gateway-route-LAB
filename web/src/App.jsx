@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, us
 import fs from "node:fs";
 import ShelfLink from "./components/ShelfLink.jsx";
 import VerifyMark from "./components/VerifyMark.jsx";
-import { getCatalog, getDiagram, getInfo, getRoutes, postMode, resetServer, runScenario } from "./lib/api.js";
+import { getCatalog, getDiagram, getInfo, getRoutes, postMode, resetServer, runScenario, getTalkTrack } from "./lib/api.js";
+import TalkTrackDialog from "./talk-track/TalkTrackDialog.jsx";
 import { boxesFromDoc } from "./lib/diagram.js";
 import { fromRun } from "./lib/session.js";
 import { fill } from "./lib/fill.js";
@@ -34,6 +35,9 @@ export default function App() {
   const [tab, setTab] = useState(tabFromHash);
   const [theme, setTheme] = useState(() => (["light", "dark"].includes(read("rl.theme", "")) ? read("rl.theme", "") : "system"));
   const [present, setPresent] = useState(() => read("rl.present", "0") === "1");
+  const [talkOpen, setTalkOpen] = useState(false);
+  const [talk, setTalk] = useState([]);
+  useEffect(() => { getTalkTrack().then((t) => setTalk(t.talkTrack ?? [])).catch(() => {}); }, []);
   const [modeNote, setModeNote] = useState("");
   const [mode, setMode] = useState("mock");
   const [fontStep, setFontStep] = useState(() => { const f = read("rl.font", ""); return ["S", "M", "L"].includes(f) ? f : "M"; });
@@ -103,6 +107,7 @@ export default function App() {
           theme={{ value: theme, onChange: setThemePersist }}
           fontSize={{ value: fontStep, onChange: setFontStep }}
           present={{ active: present, onToggle: () => setPresent(!present) }}
+          talkTrack={{ active: talkOpen, onToggle: () => setTalkOpen((v) => !v) }}
           shelfUrl={loaded ? undefined : "https://local.ping-devops.com:8443/"}
           help={{ href: "https://github.com/curtismu7/ping-gateway-route-LAB#readme" }}
           version={VERSION}
@@ -127,6 +132,7 @@ export default function App() {
             ? <p className="muted" role="status">Loading the lab...</p>
             : <Shell actions={shellActions} mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} present={present} modeNote={modeNote} />}
       </main>
+      <TalkTrackDialog isOpen={talkOpen} onClose={() => setTalkOpen(false)} talk={talk} />
     </>
   );
 }
@@ -186,6 +192,7 @@ function Shell({ actions, mode, info, catalog, setCatalog, diagram, tab, theme, 
       {modeNote && <p className="muted note" role="status" data-testid="mode-note">{modeNote}</p>}
       <p className="lede" data-admin-only>{fill("{{client}} calls {{host}} through a gateway. Which route answers, and what does the 401 look like to the client?", cast)}</p>
       <Panel app={app} />
+
     </>
   );
 }

@@ -14,6 +14,7 @@ import { createClock, createMockAS, handleRequest } from './introspect.js';
 import { lintWwwAuthenticate, lintMetadata, RULES, WWW_LIMITS } from './wwwauth.js';
 import { runScenario, runAll, seedDefinitions } from './runner.js';
 import { SCENARIOS, VERTICALS, getScenario, getVertical, storyCorpus, renderScenario } from './stories.js';
+import { talkTrackRows } from './talkTrack.js';
 import { newTraceparent, childTraceparent } from './trace.js';
 import { modeInfo } from './config.js';
 import { createLive } from './live.js';
@@ -73,6 +74,8 @@ export function createApp({ live = createLive(), health = createHealth({ runtime
     requested.mode = source === 'real' ? 'live' : 'mock';
     res.json(modeView());
   });
+
+  api.get('/talk', (req, res) => { const v = req.query.vertical && VERTICALS.some((x) => x.id === req.query.vertical) ? req.query.vertical : undefined; res.json({ talkTrack: talkTrackRows(v) }); });
 
   api.get('/catalog', (req, res) => {
     const v = getVertical(req.query.vertical || VERTICALS[0].id);

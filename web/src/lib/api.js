@@ -30,3 +30,4 @@ export const runScenario = (scenario, vertical) => need(call("POST", "/api/run",
 export const getLiveExperiments = () => need(call("GET", "/api/live/experiments"));
 // Live: the server refuses unless Live is on; confirm:true is the page's confirm gate. Never throws on 4xx/5xx.
 export const sendLive = (request) => call("POST", "/api/live/send", { request, confirm: true });
+export const getTalkTrack = () => need(call("GET", "/api/talk"));
