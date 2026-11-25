@@ -27,7 +27,7 @@ test('request allow-lists: methods, a path only, plain headers; a cookie, a body
   assert.equal(validateLiveRequest({ url: '/x', headers: Object.fromEntries(Array.from({ length: 13 }, (_, i) => [`h${i}`, 'v'])) }).ok, false);
   assert.equal(validateLiveRequest({ url: '/x', headers: [] }).ok, false);
   assert.equal(validateLiveRequest(null).ok, false);
-  const ok = valid({ url: '/x', headers: { Host: 'localhost:3036', Accept: 'application/json', Authorization: `Bearer ${TOKEN}`, 'MCP-Protocol-Version': '2025-06-18', Origin: 'http://localhost:1', traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01' } });
+  const ok = valid({ url: '/x', headers: { Host: 'localhost:7809', Accept: 'application/json', Authorization: `Bearer ${TOKEN}`, 'MCP-Protocol-Version': '2025-06-18', Origin: 'http://localhost:1', traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01' } });
   assert.equal(ok.bearer, TOKEN);
   assert.deepEqual(REQUEST_HEADER_ALLOW.filter((h) => /cookie|forward|proxy|connection|length|encoding/.test(h)), []);
 });
@@ -196,7 +196,7 @@ test('a token the gateway reflects into its response headers is removed from the
 
 test('a mock-issued token is shown raw and labelled; any other token is hidden', () => {
   const mock = valid({ url: '/x', headers: { Authorization: 'Bearer mock-tok-0123456789abcdef01234567' } });
-  const t = target('https://localhost:3036');
+  const t = target('https://localhost:7809');
   const m = describeSent(mock, t, '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01');
   assert.equal(m.headers.Authorization, 'Bearer mock-tok-0123456789abcdef01234567 (mock-issued token, shown raw)');
   const real = describeSent(valid({ url: '/x', headers: { Authorization: `Bearer ${TOKEN}` } }), t, '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01');

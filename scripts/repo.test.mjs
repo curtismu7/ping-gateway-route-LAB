@@ -111,7 +111,7 @@ test('hygiene: every host in every tracked text file is reserved, every key is m
     const text = read(f);
     // The Live test files hold IPv4 literals as test vectors for the loopback judgement (private, public and carried-in-IPv6 forms); names are still checked.
     const vectorFile = f === 'server/test/safety.test.js' || /^server\/test\/live.*\.test\.js$/.test(f);
-    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|raw\.githubusercontent\.com|local\.ping-devops\.com|0\.0\.0\.0|127\.0\.0\.1:\d+\}?|192\.0\.2\.\d+|localhost.*|\[[0-9a-f:.]+\])$/.test(h) && !/[${]/.test(h) && !(vectorFile && /^(0x)?[0-9a-f]+(\.(0x)?[0-9a-f]+)*$/i.test(h))), [], `${f}: real host`);
+    if (f !== 'server/test/safety.test.js') assert.deepEqual(scanHosts(text).filter((h) => !/^(www\.rfc-editor\.org|json-schema\.org|github\.com|raw\.githubusercontent\.com|local\.ping-devops\.com|0\.0\.0\.0|127\.0\.0\.1:\d+[^\w]*|192\.0\.2\.\d+|localhost.*|\[[0-9a-f:.]+\])$/.test(h) && !/[${]/.test(h) && !(vectorFile && /^(0x)?[0-9a-f]+(\.(0x)?[0-9a-f]+)*$/i.test(h))), [], `${f}: real host`);
     if (f !== 'server/test/safety.test.js') assert.deepEqual(scanKeys(text), [], `${f}: non-mock key`);
     assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(text), `${f}: uuid-shaped id (tenant or client id?)`);
     if (f !== 'scripts/repo.test.mjs') assert.ok(!/mermaid/i.test(text), `${f}: mermaid`);
@@ -293,4 +293,22 @@ test('the container keeps Live off: compose asserts the loopback publish with th
   assert.match(compose, /LAB_DOCKER_LOOPBACK_PUBLISH: "1"/);
   assert.ok(!/ROUTE_LAB_LIVE|STANDALONE_ENV|volumes:/.test(compose), 'no Live key, settings path or mount in compose');
   assert.ok(!/ROUTE_LAB_LIVE|LAB_DOCKER_LOOPBACK_PUBLISH|STANDALONE_ENV/.test(docker));
+});
+
+test('the Live target documented and defaulted is ping-shared\'s gateway, not another project\'s, and is honest that it is untested', async () => {
+  const { parseTarget } = await import('../server/src/liveTarget.js');
+  const { LIVE_OFF } = await import('../server/src/live.js');
+  const line = read('.env.example').split('\n').find((l) => /^# ROUTE_LAB_LIVE_TARGET=/.test(l));
+  const value = line.replace(/^# ROUTE_LAB_LIVE_TARGET=/, '').split(/\s/)[0];
+  assert.equal(value, 'http://127.0.0.1:7809');
+  const t = parseTarget(value);
+  assert.ok(t.ok, 'the documented target is accepted by the Live target parser');
+  assert.equal(t.target.origin, 'http://127.0.0.1:7809');
+  assert.ok(!/^ROUTE_LAB_LIVE_TARGET=/m.test(read('.env.example')), 'no shipped target: Live stays off until the user sets one');
+  for (const text of [read('README.md'), LIVE_OFF]) assert.ok(text.includes('7809'));
+  assert.match(read('README.md'), /UNVERIFIED: this lab has not been run against ping-shared's gateway/);
+  // No other project's address or name anywhere in the shipped files.
+  const bad = /\b(3036|9031|8623)\b|AI-DEMO2|ai-demo2|local\.ping-devops\.com:9031/i;
+  const hits = tracked().filter((f) => !/^(web\/src\/top-menu\/|web\/src\/styles\/standalone-ui\.css$|server\/data\/routes\/|scripts\/repo\.test\.mjs$)|\.(png|svg|ico)$/.test(f) && bad.test(read(f)));
+  assert.deepEqual(hits, []);
 });

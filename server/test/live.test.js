@@ -23,29 +23,29 @@ const json = (r) => JSON.parse(r.text);
 
 test('liveStatus: off unless ROUTE_LAB_LIVE is exactly 1 AND the target is one loopback origin AND the bind is loopback (or the loopback-published container)', () => {
   assert.equal(liveStatus({}).enabled, false); assert.equal(liveStatus({}).reason, LIVE_OFF);
-  for (const flag of ['0', 'true', 'yes', 'on', '2', '1 ', 'TRUE']) assert.equal(liveStatus({ ROUTE_LAB_LIVE: flag, ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' }).code, 'bad_flag', flag);
+  for (const flag of ['0', 'true', 'yes', 'on', '2', '1 ', 'TRUE']) assert.equal(liveStatus({ ROUTE_LAB_LIVE: flag, ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' }).code, 'bad_flag', flag);
   assert.equal(liveStatus({ ROUTE_LAB_LIVE: '1' }).code, 'missing');
-  assert.equal(liveStatus({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://gateway.example:3036' }).code, 'not_loopback');
-  assert.equal(liveStatus({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036/mcp' }).code, 'not_origin');
-  const ok = liveStatus({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' });
-  assert.equal(ok.enabled, true); assert.equal(ok.target.origin, 'https://localhost:3036');
+  assert.equal(liveStatus({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://gateway.example:7809' }).code, 'not_loopback');
+  assert.equal(liveStatus({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809/mcp' }).code, 'not_origin');
+  const ok = liveStatus({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' });
+  assert.equal(ok.enabled, true); assert.equal(ok.target.origin, 'https://localhost:7809');
   // a bare MODE or ROUTE_LAB_MODE=live does not turn Live on by itself
-  assert.equal(liveStatus({ ROUTE_LAB_MODE: 'live', MODE: 'live', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' }).enabled, false);
+  assert.equal(liveStatus({ ROUTE_LAB_MODE: 'live', MODE: 'live', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' }).enabled, false);
   // the bind rule
-  const env = { ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' };
+  const env = { ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' };
   assert.equal(liveStatus({ ...env, LAB_BIND: '127.0.0.1' }).enabled, true);
   assert.equal(liveStatus({ ...env, LAB_BIND: '0.0.0.0' }).code, 'bind');
   assert.equal(liveStatus({ ...env, LAB_BIND: '192.0.2.4' }).code, 'bind');
   assert.equal(liveStatus({ ...env, LAB_BIND: '0.0.0.0', LAB_DOCKER_LOOPBACK_PUBLISH: '1' }).enabled, true, 'the container that publishes on loopback only');
   assert.equal(liveStatus({ ...env, LAB_BIND: '0.0.0.0', LAB_DOCKER_LOOPBACK_PUBLISH: 'true' }).code, 'bind');
   // a refusal never repeats the configured value
-  const typed = 'https://leak-canary-host.example:3036/secret-path?token=canarycanary';
+  const typed = 'https://leak-canary-host.example:7809/secret-path?token=canarycanary';
   assert.ok(!JSON.stringify(liveStatus({ ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: typed })).includes('canary'));
 });
 
 test('modeInfo: Live is reported available with the origin only, or unavailable with the reason; asking for live while it is refused stays Mock', () => {
-  const on = { ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' };
-  assert.deepEqual(modeInfo(on).modes.live, { available: true, target: 'https://localhost:3036' });
+  const on = { ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' };
+  assert.deepEqual(modeInfo(on).modes.live, { available: true, target: 'https://localhost:7809' });
   assert.equal(modeInfo(on).mode, 'mock', 'Mock stays the default even when Live is available');
   assert.equal(modeInfo({ ...on, ROUTE_LAB_MODE: 'live' }).mode, 'live');
   assert.equal(modeInfo({ ROUTE_LAB_MODE: 'live' }).mode, 'mock', 'asked for live, refused: Mock');
@@ -236,4 +236,13 @@ test('live.send itself refuses when Live is off, whoever calls it (the route is 
   const live = createLive({ env: {} });
   const r = await live.send({ request: { url: '/health' }, world: createWorld() });
   assert.equal(r.status, 403); assert.equal(r.body.error, 'live_disabled');
+});
+
+test('the documented standalone target (ping-shared gateway, plain http on loopback 7809) is accepted, shown as the Live target, and never contacted by the status check', () => {
+  const env = { ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'http://127.0.0.1:7809' };
+  const st = liveStatus(env);
+  assert.equal(st.enabled, true); assert.equal(st.target.origin, 'http://127.0.0.1:7809');
+  assert.deepEqual(modeInfo(env).modes.live, { available: true, target: 'http://127.0.0.1:7809' });
+  assert.equal(liveStatus({ ROUTE_LAB_LIVE: '1' }).enabled, false, 'no default target: Live stays off until one is set');
+  assert.match(liveStatus({ ROUTE_LAB_LIVE: '1' }).reason, /127\.0\.0\.1:7809/);
 });

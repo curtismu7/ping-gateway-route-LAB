@@ -13,8 +13,8 @@ const withFile = (text, fn) => {
 
 test('only this lab\'s own key is taken from the shared settings file; every other key stays out', () => {
   assert.deepEqual(SETTINGS_KEYS, ['ROUTE_LAB_MODE', 'ROUTE_LAB_LIVE', 'ROUTE_LAB_LIVE_TARGET']);
-  withFile('PINGONE_CLIENT_SECRET=hunter2hunter2\nMODE=live\nPORT=9999\nROUTE_LAB_MODE=live\nROUTE_LAB_LIVE=1\nROUTE_LAB_LIVE_TARGET=https://localhost:3036\nROUTE_LAB_LIVE_TOKEN=nope\n# a comment\nOTHER_APP_TOKEN="x y"\n', (f) => {
-    assert.deepEqual(readSharedSettings(f), { ROUTE_LAB_MODE: 'live', ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:3036' });
+  withFile('PINGONE_CLIENT_SECRET=hunter2hunter2\nMODE=live\nPORT=9999\nROUTE_LAB_MODE=live\nROUTE_LAB_LIVE=1\nROUTE_LAB_LIVE_TARGET=https://localhost:7809\nROUTE_LAB_LIVE_TOKEN=nope\n# a comment\nOTHER_APP_TOKEN="x y"\n', (f) => {
+    assert.deepEqual(readSharedSettings(f), { ROUTE_LAB_MODE: 'live', ROUTE_LAB_LIVE: '1', ROUTE_LAB_LIVE_TARGET: 'https://localhost:7809' });
     const env = { HOME: '/x' };
     applySharedSettings(env, f);
     assert.deepEqual(Object.keys(env).sort(), ['HOME', 'ROUTE_LAB_LIVE', 'ROUTE_LAB_LIVE_TARGET', 'ROUTE_LAB_MODE']);
