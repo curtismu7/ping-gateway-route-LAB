@@ -211,8 +211,8 @@ test('every page has the Mock | Live toggle (the shared TopMenu), Live switches 
   assert.match(app, /if \(!r\.ok\) \{ setModeNote\([^;]*\); return; \}\s*setInfo\([^;]*\);\s*setMode\(source === "real" \? "live" : "mock"\)/, 'the page switches to Live only after the server accepted the change');
   assert.equal((app.match(/setMode\("live"\)/g) || []).length, 1, 'the opening mode is the only other place that sets Live');
   assert.match(app, /if \(i\.source === "real"\) setMode\("live"\)/, 'the opening mode is Live only when the server says it is in real mode');
-  assert.match(app, /data-state="live"/);
-  assert.match(app, /data-state="mock"/);
+  assert.match(app, /<ModeModal mode=\{live \? "real" : "mock"\} lines=\{\{ mock: MODE_LINES\.mock, real: MODE_LINES\.live\(/, 'the Real-or-mock modal says REAL only while Live is on');
+  assert.doesNotMatch(app, /data-testid="banner"/, 'no simulation banner');
 });
 
 test('shelf entry compose file points at this repo and exists; run.sh builds the UI before starting', () => {
