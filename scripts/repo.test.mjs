@@ -186,14 +186,15 @@ test('no EC key generation anywhere (generateKeyPairSync of curves aborts under 
   }
 });
 
-test('web is the real UI (not a placeholder); package workspaces are server and web; banner text is in the shell; the vendored stylesheet is loaded first', () => {
+test('web is the real UI (not a placeholder); package workspaces are server and web; the modal lines are in the shell; the vendored stylesheet is loaded first', () => {
   assert.deepEqual(JSON.parse(read('package.json')).workspaces, ['server', 'web']);
   const web = JSON.parse(read('web/package.json'));
   assert.ok(!/placeholder/.test(read('web/package.json')));
   assert.equal(web.scripts.test, 'vitest run');
   assert.ok(web.dependencies['@xyflow/react'] && web.dependencies.react);
   assert.match(read('web/src/App.jsx'), /Simulated evaluator, not real PingGateway/);
-  assert.match(read('web/src/App.jsx'), /BANNER = "simulated evaluator, not real PingGateway"/);
+  assert.match(read('web/src/App.jsx'), /MODE_LINES = \{\n  mock: "Simulated evaluator, not real PingGateway\./);
+  assert.match(read('web/src/App.jsx'), /Live, but predictions and every other tab are a simulated evaluator, not real PingGateway/);
   assert.ok(fs.existsSync(path.join(ROOT, 'web/src/styles/standalone-ui.css')));
   const main = read('web/src/main.jsx');
   assert.ok(main.indexOf('standalone-ui.css') > 0 && main.indexOf('standalone-ui.css') < main.indexOf('app.css'));
@@ -210,8 +211,8 @@ test('every page has the Mock | Live toggle (the shared TopMenu), Live switches 
   assert.match(app, /if \(!r\.ok\) \{ setModeNote\([^;]*\); return; \}\s*setInfo\([^;]*\);\s*setMode\(source === "real" \? "live" : "mock"\)/, 'the page switches to Live only after the server accepted the change');
   assert.equal((app.match(/setMode\("live"\)/g) || []).length, 1, 'the opening mode is the only other place that sets Live');
   assert.match(app, /if \(i\.source === "real"\) setMode\("live"\)/, 'the opening mode is Live only when the server says it is in real mode');
-  assert.match(app, /data-state="live"/);
-  assert.match(app, /data-state="mock"/);
+  assert.match(app, /<ModeModal mode=\{live \? "real" : "mock"\} lines=\{\{ mock: MODE_LINES\.mock, real: MODE_LINES\.live\(/, 'the Real-or-mock modal says REAL only while Live is on');
+  assert.doesNotMatch(app, /data-testid="banner"/, 'no simulation banner');
 });
 
 test('shelf entry compose file points at this repo and exists; run.sh builds the UI before starting', () => {

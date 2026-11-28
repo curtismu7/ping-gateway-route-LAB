@@ -4,9 +4,9 @@
 
 Open with the label: this is a simulated evaluator, not real PingGateway. Say what that buys you (the mechanics, instantly, with nothing installed) and what it does not (IG's own parse errors, route reload, handler chain).
 
-The page opens in Mock. Press Live once: if Live is off (the default) the page says why and stays in Mock, which is itself a safe thing to show. If Live is on, the banner and the mode chip change and the Request simulator tab gains a Send to the real gateway button.
+The page opens in Mock. Press Live once: if Live is off (the default) the page says why and stays in Mock, which is itself a safe thing to show. If Live is on, a REAL modal, the mode chip and the badge change and the Request simulator tab gains a Send to the real gateway button.
 
-Presenter mode (P, or the Present button) hides the explanatory text and keeps the banner. Esc leaves it. Reset lab puts the routes, tokens, clock and diagram boxes back.
+Presenter mode (P, or the Present button) hides the explanatory text and keeps the mode switch. Esc leaves it. Reset lab puts the routes, tokens, clock and diagram boxes back.
 
 One line per story. Each is generated from the story data, filled with the cast of the Travel pack, so it cannot drift from what the lab runs.
 

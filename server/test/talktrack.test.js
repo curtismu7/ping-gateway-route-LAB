@@ -34,12 +34,12 @@ test('changing a story changes the generated track (it really is generated from 
   assert.equal(renderTalkTrackMarkdown(), before);
 });
 
-test('the track opens with the simulated label, says what Live does when it is off and when it is on, keeps the licence line as UNVERIFIED, and says Presenter mode keeps the banner', () => {
+test('the track opens with the simulated label, says what Live does when it is off and when it is on, keeps the licence line as UNVERIFIED, and says Presenter mode keeps the mode switch', () => {
   const f = talkTrackFrame();
   assert.match(f.opening.join('\n'), /simulated evaluator, not real PingGateway/);
   assert.match(f.opening.join('\n'), /if Live is off \(the default\) the page says why and stays in Mock/);
   assert.match(f.opening.join('\n'), /If Live is on/);
-  assert.match(f.opening.join('\n'), /keeps the banner/);
+  assert.match(f.opening.join('\n'), /keeps the mode switch/);
   assert.match(f.closing.join('\n'), /UNVERIFIED/);
 });
 

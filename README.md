@@ -10,11 +10,11 @@ The catalog id A19 is carried over from the old `ping-gateway-route-lab` repo (t
 
 ## What is simulated
 
-**Simulated evaluator, not real PingGateway.** Everything on screen comes from a small hand-written interpreter, a mock authorization server and a linter, all in one local process. The banner says so on every tab, presenter mode included.
+**Simulated evaluator, not real PingGateway.** Everything on screen comes from a small hand-written interpreter, a mock authorization server and a linter, all in one local process. The page opens on a MOCK or REAL modal that says so, and the mode badge and label in the header keep saying it on every tab, presenter mode included.
 
 **Mock mode** (the default): the condition evaluator, the 14 scrubbed example routes, the `WWW-Authenticate` and RFC 9728 linter, an RFC 7662 introspection stub with a virtual clock, 17 stories in three verticals. Mock-issued tokens are labelled (`mock-tok-...`) and nothing is signed. Mock makes no network call at all (a test pins it).
 
-**Live mode** is opt-in and owner-run. With it on, the Request simulator tab gains a **Send to the real gateway and compare** button: it sends the request you composed to ONE gateway on this machine and shows what actually answered (status, a short allow-list of response headers, a bounded body preview) next to what the simulator predicted, and whether the two agree. The predictions, and every other tab, stay simulated, and the banner says so. See "Mock and live modes" for the guards.
+**Live mode** is opt-in and owner-run. With it on, the Request simulator tab gains a **Send to the real gateway and compare** button: it sends the request you composed to ONE gateway on this machine and shows what actually answered (status, a short allow-list of response headers, a bounded body preview) next to what the simulator predicted, and whether the two agree. The predictions, and every other tab, stay simulated, and the REAL modal says so. See "Mock and live modes" for the guards.
 
 What you can do:
 
@@ -76,10 +76,10 @@ If the port is taken:
 
 ## Mock and live modes
 
-The header of every page, including the loading and error states, has a **Mock | Live** switch and a mode label. The banner names the same mode ("Mock mode. Simulated evaluator, not real PingGateway." or "Live mode. Predictions and every other tab are a simulated evaluator, not real PingGateway. ...").
+The header of every page, including the loading and error states, has a **Mock | Live** switch and a mode label. The Real-or-mock modal names the same mode when the page opens and when you switch ("Simulated evaluator, not real PingGateway. ..." in MOCK; "Live, but predictions and every other tab are a simulated evaluator, not real PingGateway. ..." in REAL); it stays away for the rest of that browser session once you press Got it.
 
 - **Mock** (default) works fully offline and makes zero network calls.
-- **Live** is off unless you set `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` in the shared settings file and restart. While it is off, pressing Live shows the reason next to the switch and changes nothing (`GET /api/info` carries the same message for scripts). While it is on, pressing Live changes the banner and the mode label and adds the send button to the Request simulator tab; pressing Mock goes back.
+- **Live** is off unless you set `ROUTE_LAB_LIVE=1` and `ROUTE_LAB_LIVE_TARGET` in the shared settings file and restart. While it is off, pressing Live shows the reason next to the switch and changes nothing (`GET /api/info` carries the same message for scripts). While it is on, pressing Live shows the REAL modal and changes the mode label and adds the send button to the Request simulator tab; pressing Mock goes back.
 
 What a Live send does, and the guards around it:
 
@@ -100,7 +100,7 @@ What a Live send does, and the guards around it:
 
 **Live experiments.** Five unauthenticated GET requests that change nothing on the gateway ship as buttons that fill the request form (health, no route, a protected route, dot-segments, a percent-encoded letter). `docs/live-checks.md` lists them with the results of one real run; experiments that change a gateway stay owner-run instructions.
 
-Presenter mode (the **Present** button, or `P`; `Esc` leaves it) hides the explanatory text and keeps the banner and the mode switch. The talk track is `docs/talk-track.md`, generated from the story data and the experiment data with `npm run talk-track`; a test fails if the file drifts from the data.
+Presenter mode (the **Present** button, or `P`; `Esc` leaves it) hides the explanatory text and keeps the mode switch, badge and label. The talk track is `docs/talk-track.md`, generated from the story data and the experiment data with `npm run talk-track`; a test fails if the file drifts from the data.
 
 ## Health, doctor and reset
 

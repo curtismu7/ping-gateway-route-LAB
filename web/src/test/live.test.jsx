@@ -37,32 +37,69 @@ async function goLive(user) {
 async function setField(user, label, value) { const el = screen.getByLabelText(label); await user.clear(el); if (value) await user.type(el, value); }
 
 describe("Live mode in the page", () => {
-  it("opens in Mock even though Live is available; pressing Live switches the toggle, chip and banner on every tab, and Mock switches back", async () => {
+  it("opens in Mock even though Live is available; pressing Live switches the toggle, chip and modal (REAL, still a simulated evaluator), and Mock switches back", async () => {
     const user = await open();
     expect(screen.getByTestId("mode-select")).toHaveValue("mock");
-    expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock");
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
     await goLive(user);
+    const real = screen.getByTestId("mode-modal");
+    expect(real).toHaveAttribute("data-mode", "real");
+    expect(real).toHaveTextContent("REAL");
+    expect(real).toHaveTextContent(/Live, but predictions and every other tab are a simulated evaluator, not real PingGateway/);
+    expect(real).toHaveTextContent(BANNER);
+    expect(real).toHaveTextContent(gw.origin);
+    expect(real).toHaveTextContent(/tokens you type are sent but never shown back/);
     for (const [, label] of TABS) {
       await tab(user, label);
       expect(screen.getByTestId("mode-select")).toHaveValue("real");
       expect(screen.getByTestId("mode-badge")).toHaveTextContent("Live");
       expect(screen.getByTestId("mode")).toHaveTextContent(new RegExp(`Mode: live \\(your gateway at ${gw.origin.replace(/[.]/g, "\\.")}`));
-      expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
-      expect(screen.getByTestId("banner")).toHaveTextContent(/Live mode/);
-      expect(screen.getByTestId("banner")).toHaveTextContent(BANNER);
-      expect(screen.getByTestId("banner")).toBeVisible();
+      expect(screen.queryByTestId("banner")).toBeNull();
     }
     await user.selectOptions(screen.getByTestId("mode-select"), "mock");
-    await waitFor(() => expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock"));
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock"));
     expect(screen.getByTestId("mode")).toHaveTextContent(/Mode: mock/);
   });
 
-  it("the banner stays in presenter mode while Live", async () => {
+  it("dismissing the MOCK modal does not hide the REAL one when Live is pressed, and each is dismissed once per session", async () => {
+    const user = await open();
+    await user.click(screen.getByTestId("mode-modal-ok"));
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+    await goLive(user);
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "real");
+    await user.click(screen.getByTestId("mode-modal-ok"));
+    await user.selectOptions(screen.getByTestId("mode-select"), "mock");
+    await waitFor(() => expect(screen.getByTestId("mode-select")).toHaveValue("mock"));
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+    await goLive(user);
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+  });
+
+  it("a server that is already Live shows MOCK until /api/info answers, then REAL", async () => {
+    const keep = globalThis.fetch;
+    let release; const held = new Promise((r) => { release = r; });
+    globalThis.fetch = async (input, init) => {
+      if (String(input) !== "/api/info") return keep(input, init);
+      await held;
+      const body = await (await keep(input, init)).json();
+      return new Response(JSON.stringify({ ...body, source: "real" }), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    try {
+      render(<App />);
+      expect(await screen.findByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
+      release();
+      await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "real"));
+      expect(screen.getByTestId("mode-modal")).toHaveTextContent(/Live, but predictions/);
+    } finally { globalThis.fetch = keep; }
+  });
+
+  it("the badge and chip stay in presenter mode while Live, and there is no simulation banner", async () => {
     const user = await open();
     await goLive(user);
     await user.click(screen.getByTestId("presenter"));
-    expect(screen.getByTestId("banner")).toBeVisible();
-    expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
+    expect(screen.getByTestId("mode-badge")).toBeVisible();
+    expect(screen.getByTestId("mode")).toHaveTextContent(/predictions simulated/);
+    expect(screen.queryByTestId("banner")).toBeNull();
   });
 
   it("nothing reaches the gateway until Send, and Send needs the confirm box", async () => {

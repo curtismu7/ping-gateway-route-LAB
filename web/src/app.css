@@ -3,7 +3,7 @@
    Outcomes are green, amber and red (status tokens), always with a word beside the colour. */
 :root[data-present="1"] body { font-size: 20px; }
 :root[data-present="1"] [data-admin-only] { display: none; }
-/* Page frame (STANDALONE-UI-PATTERNS.md section 3): one centred 1100px column; the simulation banner is its first child. */
+/* Page frame (STANDALONE-UI-PATTERNS.md section 3): one centred 1100px column. */
 .page { max-width: 2200px; margin: 0 auto; padding: 4px 0 2rem; }
 h2 { margin: 0.5rem 0 0.25rem; font-size: 1.6rem; }
 h3 { margin: 0 0 0.5rem; font-size: 1.1rem; }
@@ -29,7 +29,6 @@ code { font-size: 0.85rem; overflow-wrap: anywhere; }
 .shell-bar .shell-right { margin-left: auto; } /* TopMenu renders .top-menu.shell-right; its own layout stays */
 .shell-bar .mode-toggle__chip { color: var(--on-box); } /* the lab's mode chip rides the dark bar: --muted is under 3:1 there in the light theme */
 
-.banner { position: sticky; top: 0; z-index: 5; }
 html { font-size: var(--fs, 16px); }
 .inline { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
 
@@ -143,7 +142,6 @@ main:focus:not(:focus-visible) { outline: 0; } /* the skip link focuses <main>; 
   .claims, .claims tbody, .claims tr, .claims th, .claims td { display: block; width: 100%; }
   .claims th[scope=row] { border-bottom: 0; padding-bottom: 0; }
   .claims { font-size: 0.85rem; }
-  .banner { position: static; }
   .shell-bar { gap: 10px; padding: 10px 16px; }
   .shell-bar h1 { font-size: 1.1rem; }
   .shell-nav { order: 3; flex-basis: 100%; }

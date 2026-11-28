@@ -75,7 +75,7 @@ describe("styles", () => {
     expect(main.indexOf("standalone-ui.css")).toBeGreaterThan(0);
     expect(main.indexOf("standalone-ui.css")).toBeLessThan(main.indexOf("app.css"));
     expect(css).not.toMatch(/^(button|input|select|textarea|:focus-visible)\b[^{]*\{/m);
-    for (const [, body] of css.matchAll(/^\.banner\s*\{([^}]*)\}/gm)) expect(body).toMatch(/^\s*position:\s*(sticky|static);(\s*top:\s*0;)?(\s*z-index:\s*\d+;)?\s*$/); // layout only; the look is the shared stylesheet's
+    expect(css).not.toMatch(/\.banner\b/); // the simulation banner is gone; the modal's look is the vendored mode-modal.css
     expect(css).not.toMatch(/\.btn\b/);
   });
   it("presenter mode hides only [data-admin-only], never the banner; small screens have a phone layout", () => {

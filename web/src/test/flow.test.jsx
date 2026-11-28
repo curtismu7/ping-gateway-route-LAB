@@ -30,24 +30,52 @@ describe("shell", () => {
     expect(srv.calls.some((c) => c.path === "/api/diagram")).toBe(true);
   });
 
-  it("shows the simulated banner on every tab, in presenter mode too, and before the app has loaded", async () => {
+  it("opens on the MOCK modal with the lab's line; Got it closes it and a fresh render in the same session does not bring it back", async () => {
     const user = await open();
+    const modal = screen.getByTestId("mode-modal");
+    expect(modal).toHaveAttribute("data-mode", "mock");
+    expect(modal).toHaveTextContent("MOCK");
+    expect(modal).toHaveTextContent(BANNER);
+    expect(modal).toHaveTextContent(/no gateway, no tenant, no outbound network/);
+    expect(screen.getByTestId("mode-modal-ok")).toHaveFocus();
+    await user.click(screen.getByTestId("mode-modal-ok"));
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+    cleanup();
+    render(<App />);
+    await screen.findByTestId("reset-note");
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+  });
+
+  it("Escape closes the modal", async () => {
+    const user = await open();
+    expect(screen.getByTestId("mode-modal")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+  });
+
+  it("the simulation banner is gone on every tab, presenter mode too; the mode badge and chip still say simulated", async () => {
+    const user = await open();
+    await user.click(screen.getByTestId("mode-modal-ok"));
     await user.click(screen.getByTestId("presenter"));
     for (const [, label] of TABS) {
       await tab(user, label);
-      expect(screen.getByTestId("banner")).toHaveTextContent(BANNER);
-      expect(screen.getByTestId("banner")).toBeVisible();
+      expect(screen.queryByTestId("banner")).toBeNull();
+      expect(document.querySelector("main > .banner")).toBeNull();
+      expect(screen.getByTestId("mode-badge")).toHaveTextContent("Mock");
+      expect(screen.getByTestId("mode")).toHaveTextContent(/Mode: mock \(simulated, in this process\)/);
+      expect(screen.getByTestId("mode")).toBeVisible();
     }
     expect(document.documentElement.dataset.present).toBe("1");
-    expect(screen.getByTestId("banner").closest("[data-admin-only]")).toBeNull();
   });
 
-  it("shows the banner even when the server cannot be reached", async () => {
+  it("shows the MOCK modal even when the server cannot be reached", async () => {
     const keep = globalThis.fetch;
     globalThis.fetch = () => Promise.reject(new Error("down"));
     render(<App />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach/i);
-    expect(screen.getByTestId("banner")).toHaveTextContent(BANNER);
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(BANNER);
+    expect(screen.queryByTestId("banner")).toBeNull();
     globalThis.fetch = keep;
   });
 
@@ -64,7 +92,7 @@ describe("shell", () => {
     expect(document.documentElement.dataset.present).toBeUndefined();
   });
 
-  it("shell bar first (brand h1, Mock badge, current page pill, TopMenu), then <main> with the banner first; one h1 and one main", async () => {
+  it("shell bar first (brand h1, Mock badge, current page pill, TopMenu), then <main> with no simulation banner; one h1 and one main", async () => {
     const user = await open();
     const bar = document.querySelector("header.shell-bar");
     expect(document.querySelector("header")).toBe(bar);
@@ -74,7 +102,7 @@ describe("shell", () => {
     expect(bar.querySelector('.shell-nav a[aria-current="page"]')).toHaveTextContent("Routes");
     expect(bar.querySelector("[data-testid=top-menu]")).toHaveClass("shell-right");
     expect(bar.nextElementSibling.tagName).toBe("MAIN");
-    expect(document.querySelector("main").firstElementChild).toBe(screen.getByTestId("banner"));
+    expect(screen.queryByTestId("banner")).toBeNull();
     expect(document.querySelectorAll("h1")).toHaveLength(1);
     expect(document.querySelectorAll("main")).toHaveLength(1);
     await tab(user, "Diagram");
@@ -82,14 +110,14 @@ describe("shell", () => {
     expect(bar.querySelectorAll('.shell-nav a[aria-current="page"]')).toHaveLength(1);
   });
 
-  it("the server-down state keeps the same order: shell bar, then <main> with the banner first and the alert right below", async () => {
+  it("the server-down state keeps the same order: shell bar, then <main> with the alert first", async () => {
     const keep = globalThis.fetch;
     globalThis.fetch = () => Promise.reject(new Error("down"));
     render(<App />);
     const alert = await screen.findByRole("alert");
     expect(document.querySelector("header.shell-bar").nextElementSibling).toBe(document.querySelector("main"));
-    expect(document.querySelector("main").firstElementChild).toBe(screen.getByTestId("banner"));
-    expect(screen.getByTestId("banner").nextElementSibling).toBe(alert);
+    expect(document.querySelector("main").firstElementChild).toBe(alert);
+    expect(screen.queryByTestId("banner")).toBeNull();
     expect(document.querySelectorAll("h1")).toHaveLength(1);
     globalThis.fetch = keep;
   });
@@ -110,15 +138,14 @@ describe("mode toggle and presenter mode", () => {
       await tab(user, label);
       expect(screen.getByTestId("mode-select")).toHaveValue("mock");
       expect(screen.getByTestId("mode")).toHaveTextContent(/Mode: mock/);
-      expect(screen.getByTestId("banner")).toHaveTextContent(/Mock mode/);
-      expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "mock");
     }
     srv.calls.length = 0;
     const realOption = screen.getByTestId("mode-select").querySelector('option[value="real"]');
     expect(realOption.disabled).toBe(true); // Real unavailable: the option is off
     expect(realOption.getAttribute("title")).toMatch(/Live is off/); // with the how-to tooltip
     expect(screen.getByTestId("mode-select")).toHaveValue("mock");
-    expect(screen.getByTestId("banner")).toHaveTextContent(BANNER);
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock"); // pressing a disabled Real changes nothing: still the MOCK modal
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(BANNER);
     expect(srv.calls.filter((c) => c.method !== "GET")).toEqual([]);
     await user.selectOptions(screen.getByTestId("mode-select"), "mock");
     expect(screen.queryByTestId("mode-note")).toBeNull();
@@ -133,13 +160,12 @@ describe("mode toggle and presenter mode", () => {
     globalThis.fetch = keep;
   });
 
-  it("P toggles presenter mode and Esc leaves it; the banner and the mode toggle stay; typing in a field does not toggle it", async () => {
+  it("P toggles presenter mode and Esc leaves it; the mode toggle stays; typing in a field does not toggle it", async () => {
     const user = await open();
     expect(document.documentElement.dataset.present).toBeUndefined();
     await user.keyboard("p");
     expect(document.documentElement.dataset.present).toBe("1");
     expect(screen.getByTestId("presenter")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("banner")).toBeVisible();
     expect(screen.getByTestId("mode-select")).toBeVisible();
     await user.keyboard("{Escape}");
     expect(document.documentElement.dataset.present).toBeUndefined();

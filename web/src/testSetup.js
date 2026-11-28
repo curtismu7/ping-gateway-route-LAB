@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
+
+// The Real-or-mock modal remembers a dismissal in sessionStorage: start every test with it open.
+afterEach(() => { try { sessionStorage.clear(); } catch { /* none */ } });
 
 // React Flow measures the DOM; jsdom has no layout, so give it the few browser APIs it reads.
 class RO { observe() {} unobserve() {} disconnect() {} }
