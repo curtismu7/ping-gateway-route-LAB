@@ -186,14 +186,15 @@ test('no EC key generation anywhere (generateKeyPairSync of curves aborts under 
   }
 });
 
-test('web is the real UI (not a placeholder); package workspaces are server and web; banner text is in the shell; the vendored stylesheet is loaded first', () => {
+test('web is the real UI (not a placeholder); package workspaces are server and web; the modal lines are in the shell; the vendored stylesheet is loaded first', () => {
   assert.deepEqual(JSON.parse(read('package.json')).workspaces, ['server', 'web']);
   const web = JSON.parse(read('web/package.json'));
   assert.ok(!/placeholder/.test(read('web/package.json')));
   assert.equal(web.scripts.test, 'vitest run');
   assert.ok(web.dependencies['@xyflow/react'] && web.dependencies.react);
   assert.match(read('web/src/App.jsx'), /Simulated evaluator, not real PingGateway/);
-  assert.match(read('web/src/App.jsx'), /BANNER = "simulated evaluator, not real PingGateway"/);
+  assert.match(read('web/src/App.jsx'), /MODE_LINES = \{\n  mock: "Simulated evaluator, not real PingGateway\./);
+  assert.match(read('web/src/App.jsx'), /Live, but predictions and every other tab are a simulated evaluator, not real PingGateway/);
   assert.ok(fs.existsSync(path.join(ROOT, 'web/src/styles/standalone-ui.css')));
   const main = read('web/src/main.jsx');
   assert.ok(main.indexOf('standalone-ui.css') > 0 && main.indexOf('standalone-ui.css') < main.indexOf('app.css'));

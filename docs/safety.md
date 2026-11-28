@@ -1,6 +1,6 @@
 # Safety, and what is simulated
 
-**This lab is a simulated evaluator, not real PingGateway.** The banner says so on every page and every tab, presenter mode included, and every API answer carries the header `X-Simulated-Evaluator`. Mock mode (the default) has no real-IG lane at all. The opt-in **Live mode** can send one request to a gateway on this machine and shows its answer beside the simulator's prediction; the prediction stays simulated and the real answer is labelled as real.
+**This lab is a simulated evaluator, not real PingGateway.** The page opens on a MOCK or REAL modal that says so, the mode badge and label keep saying it on every page and tab, presenter mode included, and every API answer carries the header `X-Simulated-Evaluator`. Mock mode (the default) has no real-IG lane at all. The opt-in **Live mode** can send one request to a gateway on this machine and shows its answer beside the simulator's prediction; the prediction stays simulated and the real answer is labelled as real.
 
 ## What is simulated, and what only a real IG shows
 

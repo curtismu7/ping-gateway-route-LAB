@@ -15,10 +15,16 @@ import IntrospectionTab from "./tabs/IntrospectionTab.jsx";
 import DiagramTab from "./tabs/DiagramTab.jsx";
 import RawTab from "./tabs/RawTab.jsx";
 import TopMenu, { applyFontSize } from "./top-menu/TopMenu.jsx";
+import ModeModal from "./mode-modal/ModeModal.jsx";
 
 const VERSION = (() => { try { return JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version || null; } catch { return null; } })();
 
-export const BANNER = "simulated evaluator, not real PingGateway";
+// The Real-or-mock modal's lines (it replaced the simulation banner). Live is the lab's word for the modal's REAL, and it is still a simulated
+// evaluator: only the one Send button reaches a gateway. The modal is rendered once at the root, so it also shows while loading and when the server is down.
+export const MODE_LINES = {
+  mock: "Simulated evaluator, not real PingGateway. A small hand-written interpreter, a mock authorization server and a linter, all in this process; no gateway, no tenant, no outbound network.",
+  live: (target) => `Live, but predictions and every other tab are a simulated evaluator, not real PingGateway. Only Send to the real gateway on the Request simulator tab reaches a gateway: yours, at ${target || "your own gateway on this machine"}, one request at a time; tokens you type are sent but never shown back.`,
+};
 export const TABS = [["routes", "Routes"], ["simulator", "Request simulator"], ["lint", "WWW-Authenticate linter"], ["introspection", "Introspection"], ["diagram", "Diagram"], ["raw", "Raw"]];
 // Used only if the server cannot say why Live is off (GET /api/info normally carries the text).
 const LIVE_FALLBACK = "Live is off, or the server could not be asked. It is opt-in (ROUTE_LAB_LIVE=1 and ROUTE_LAB_LIVE_TARGET in the shared settings file), so the page stays in Mock and everything on screen is simulated.";
@@ -59,7 +65,7 @@ export default function App() {
   useEffect(() => { if (theme === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => { if (present) document.documentElement.dataset.present = "1"; else delete document.documentElement.dataset.present; write("rl.present", present ? "1" : "0"); }, [present]);
   const setThemePersist = (v) => { setTheme(v); write("rl.theme", v); };
-  // Presenter mode: P toggles it, Esc leaves it (not while typing). It hides [data-admin-only] text only; the banner stays.
+  // Presenter mode: P toggles it, Esc leaves it (not while typing). It hides [data-admin-only] text only.
   useEffect(() => {
     const on = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || typing(e)) return;
@@ -85,8 +91,7 @@ export default function App() {
   const loaded = !loadError && !!catalog && !!diagram;
   const live = mode === "live" || mode === "real";
 
-  // One shell for every state (loading, server down, loaded): shell bar first, then <main> with the banner as its first child.
-  // The banner is never conditional: not on load, not on error, not in presenter mode.
+  // One shell for every state (loading, server down, loaded): shell bar first, then <main>. The Real-or-mock modal sits at the root, once.
   return (
     <>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
@@ -123,9 +128,6 @@ export default function App() {
         </TopMenu>
       </header>
       <main className="page" id="main" tabIndex={-1}>
-        {mode === "live" && info?.modes?.live?.target
-          ? <div className="banner" role="note" data-state="live" data-testid="banner"><strong>Live mode. Predictions and every other tab are a simulated evaluator, not real PingGateway.</strong> Only the Send to the real gateway button on the Request simulator tab reaches a gateway: yours, at {info.modes.live.target} on this machine, one request at a time. Tokens you type are sent but never shown back.</div>
-          : <div className="banner" role="note" data-state="mock" data-testid="banner"><strong>Mock mode. Simulated evaluator, not real PingGateway.</strong> A small hand-written interpreter, a mock authorization server and a linter, all in this process. No gateway, no tenant, no outbound network.</div>}
         {loadError
           ? <p className="alert" role="alert">Could not reach the lab server: {loadError}</p>
           : !loaded
@@ -133,6 +135,7 @@ export default function App() {
             : <Shell actions={shellActions} mode={mode} info={info} catalog={catalog} setCatalog={setCatalog} diagram={diagram} tab={tab} theme={theme} present={present} modeNote={modeNote} />}
       </main>
       <TalkTrackDialog isOpen={talkOpen} onClose={() => setTalkOpen(false)} talk={talk} />
+      <ModeModal mode={live ? "real" : "mock"} lines={{ mock: MODE_LINES.mock, real: MODE_LINES.live(info?.modes?.live?.target) }} storageKey="rl-mode" />
     </>
   );
 }
@@ -185,7 +188,7 @@ function Shell({ actions, mode, info, catalog, setCatalog, diagram, tab, theme, 
   const app = { mode, liveTarget: info?.modes?.live?.target || null, catalog, diagram, cast, routes, refreshRoutes, session, showSession, scenarioId, setScenarioId, doRun, running, runError, resetAll, cursor, setCursor, boxes, setBoxes, theme, present, go, tokens, setTokens, lintSeed, setLintSeed, req, setReq };
   const Panel = { routes: RoutesTab, simulator: SimulatorTab, lint: LintTab, introspection: IntrospectionTab, diagram: DiagramTab, raw: RawTab }[tab];
 
-  // Rendered inside <main>, right below the banner.
+  // Rendered inside <main>.
   return (
     <>
       <p className="muted note" role="status" data-testid="reset-note">{resetNote}</p>
